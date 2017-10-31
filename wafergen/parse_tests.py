@@ -5,9 +5,6 @@ from parse import *
 
 
 
-
-
-
 class TestExperiment(unittest.TestCase):
     def setUp(self):
         self.design_file = r'/home/b3053674/Documents/LargeStudy/GSS2375_WB_NewDur_Grant/new_design.csv'

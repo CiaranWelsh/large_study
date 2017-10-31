@@ -1,3 +1,51 @@
+"""
+Analysis of Wafergen data for LargeStudy
+========================================
+
+The Experiment
+--------------
+
+Fibroblast were treated with 5ng/mL TGFb or control or nothing (baseline).
+
+Fibroblasts were one of 9 groups:
+
+* Neonatal Human Dermal Fibroblasts (HDFn) * 3
+* Irradiated Human Dermal Fibroblasts (and therefore Senescent) (IR) * 3
+* Adult Human Dermal Fibroblasts (A) * 3
+
+The HDFn and IR cell lines are matched so a direct comparison is possible.
+
+Other Variables:
+
+* Time Points: 0.5, 1, 2,
+* Replicates: 6
+
+
+File contains four classes:
+
+* Experiment
+* SubExperiment
+* Plate
+* Sample
+
+The Experiment has three sub-experiments, each consisting of a HDFn, IR
+and A cell line apiece. Each sub-experiment has 6 plates, each containing
+all time points and one replicate of each of the three cell lines. Each
+plate has 72 Samples and 72 genes. Each Sample holds the data belonging
+to that sample and normalizes to the geometric mean of the reference
+genes.
+
+The baseline is split from the Control and TGFb treatment groups
+because it only has the 0 and 96h time points. Each of the :py:class:`Experiment`,
+:py:class:`SubExperiment` and :py:class:`Plate` have two properties:
+
+# treatment_data: Get the control and TGFb data
+# baseline_data: Get the baseline data
+
+
+"""
+
+
 import pandas, numpy
 import os, glob
 from copy import deepcopy
@@ -12,7 +60,28 @@ logging.basicConfig(level=logging.DEBUG)
 
 
 class Sample(object):
+    """
+    Class to represent a single sample and data from all genes
+    that belongs to that sample.
+
+    Samples are created by the Plate class.
+
+    """
     def __init__(self, id, data, reference_genes=['B2M', 'PPIA']):
+        """
+
+        :param id:
+            Sample ID. Looks like cell_line_time_treatment_replicate
+
+        :param data:
+            Data belonging to this sample. This is passed down from
+            the Plate class
+
+        :param reference_genes:
+            List of strings. Which reference genes to normalize to.
+            The rest of the samples are normalized to the geometric
+            mean of these genes.
+        """
         self.id = id
         self.data = data
         self.reference_genes = reference_genes
@@ -114,13 +183,12 @@ class Sample(object):
 
 class Plate(object):
     """
-    Each plate is 72 * 72 in dimensions
-    Each column contains a specific gene
-    Each row has a specific sample
+    Class to represent a WaferGen plate. Each plate is 72 * 72 in
+    dimension. Each column contains a specific gene while each row
+    has a specific sample.
     """
     def __init__(self, filename, design):
         """
-
         :param filename:
             Name of data file containing the plate data
 
@@ -253,8 +321,22 @@ class Plate(object):
 
 class SubExperiment(object):
     """
+    Class to hold a sub experiment formed of
+    a HDFn, IR and A sub group.
     """
     def __init__(self, id, design, plate_directory):
+        """
+
+        :param id:
+            Either 1, 2 or 3
+
+        :param design:
+            The submatrix containing the design for the
+            sub-experiment
+
+        :param plate_directory:
+            location of folder containing the *well_data* files.
+        """
         self._id = id
         self.design = design
         self.plate_directory = plate_directory
@@ -331,7 +413,9 @@ class SubExperiment(object):
 
     def get(self, query):
         """
-        Get a subset of the design
+        Get a subset of the design.
+
+        A nice method but not actually used elsewhere.
 
         A query looks like this:
         query = {
@@ -413,15 +497,22 @@ class SubExperiment(object):
         )
         df = self.design.query(final_query)
         return self.all_data[self.all_data['Sample'].isin(df['Sample'])]
-        # print df[df['Sample'].isin(self.design['Sample'])]
 
 
 
 class Experiment(object):
     """
-
+    Class to hold the entire experiment. Every aspect
+    of the experiment is obtainable via this class.
+    Accepts a design file. The design file had date and
+    filename columns manually added before processing.
     """
     def __init__(self, design):
+        """
+
+        :param design:
+            Path to the design file.
+        """
         self._design = design
         self.root = os.path.dirname(design)
         self.subexperiments = self.create_subexperiments()
@@ -468,70 +559,3 @@ class Experiment(object):
         return pandas.concat([i.baseline_data for i in self.subexperiments])
 
 #
-# if __name__ == '__main__':
-#     large_study_dir = r'/home/b3053674/Documents/LargeStudy/GSS2375_WB_NewDur_Grant'
-#
-#
-#
-#
-#     design_file = r'/home/b3053674/Documents/LargeStudy/GSS2375_WB_NewDur_Grant/new_design.csv'
-#     E = Experiment(design_file)
-#     s1 = E.subexperiments[0]
-#
-#     query = {
-#         'cell_id': ['A', 'D', 'e'],
-#         'replicate': [1, 3, 5]
-#     }
-#     #(cell_line == "A" or cell_line == "D" or cell_line == "G") and (replicate == 1) and (treatment == "Control" or treatment == "TGFb") and (time_point == 0.5 or time_point == 1 or time_point == 2)
-#
-#     f = r'/home/b3053674/Documents/LargeStudy/df.csv'
-#     p1 = s1.plates[3]#[5].data.to_csv(f)
-    # print p1.data.replicate.unique()
-    # print s1.plates
-    # s1.all_data.to_csv(f)
-    # print s1.get(query).to_csv(f)
-    # print s1.get_data()
-    # print s1.design.query('(cell_id == "A" or cell_id == "D" or cell_id == "G")')
-
-
-
-
-
-
-
-
-
-
-
-    # dire = r'C:\Users\Ciaran\Documents\LargeStudy\GSS2375_WB_NewDur_Grant'
-    # files = glob.glob(os.path.join(dire, '*WellData*'))
-    # p = Plate(files[0])
-    # print p.data
-
-
-    # import copy
-    # df = copy.deepcopy(E.design)
-
-    # treat = list(df['Treatment'])
-    # time = list(df['Time.Point'])
-    # id = list(df['Cell.ID'])
-    # rep = list(df['Replicate'])
-    # sample = []
-    # for i in range(len(treat)):
-    #     if time[i] == 0.5:
-    #         sample.append("{}_{}_{}_{}".format(
-    #             treat[i], time[i], id[i], rep[i]
-    #         )
-    #     )
-    #     else:
-    #         sample.append("{}_{}_{}_{}".format(
-    #             treat[i], int(time[i]), id[i], rep[i]
-    #         ))
-    # df['Sample'] = sample
-    # print df.to_csv(r'/home/b3053674/Documents/LargeStudy/new_design.csv')
-    # s1 = E.subexperiments[1]
-    # print s1.design.head()
-    # plate = s1.plates[0]
-    # genes = plate.samples[0].genes
-    # print plate
-
