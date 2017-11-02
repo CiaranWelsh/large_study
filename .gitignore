@@ -99,9 +99,8 @@ ENV/
 
 # mypy
 .mypy_cache/
-<<<<<<< HEAD
 
 wafergen/.idea/*
 *.~lock*
-=======
->>>>>>> 9e2d9ff2280a4e87d49fac3447fc747a64c26e98
+.idea/*
+large_study/*.pyc

@@ -13,15 +13,16 @@ Fibroblasts were one of 9 groups:
 * Irradiated Human Dermal Fibroblasts (and therefore Senescent) (IR) * 3
 * Adult Human Dermal Fibroblasts (A) * 3
 
-The HDFn and IR cell lines are matched so a direct comparison is possible.
+The HDFn and IR cell lines are matched.
 
-Other Variables:
-
+Variables:
+* Cell line 3*3 as above
 * Time Points: 0.5, 1, 2,
 * Replicates: 6
+* Groups TGFb, control and baseline (latter only has 0 and 96h)
 
 
-File contains four classes:
+This module contains four classes:
 
 * Experiment
 * SubExperiment
@@ -30,7 +31,7 @@ File contains four classes:
 
 The Experiment has three sub-experiments, each consisting of a HDFn, IR
 and A cell line apiece. Each sub-experiment has 6 plates, each containing
-all time points and one replicate of each of the three cell lines. Each
+all time points, groups and one replicate of each of the three cell lines. Each
 plate has 72 Samples and 72 genes. Each Sample holds the data belonging
 to that sample and normalizes to the geometric mean of the reference
 genes.
@@ -41,8 +42,6 @@ because it only has the 0 and 96h time points. Each of the :py:class:`Experiment
 
 # treatment_data: Get the control and TGFb data
 # baseline_data: Get the baseline data
-
-
 """
 
 
@@ -56,7 +55,7 @@ from cached_property import cached_property
 # FORMAT = "%(asctime)s"
 logging.basicConfig(level=logging.DEBUG)
 
-
+pandas.options.mode.chained_assignment = None
 
 
 class Sample(object):
@@ -217,6 +216,9 @@ class Plate(object):
     def __repr__(self):
         return self.__str__()
 
+    def __getitem__(self, item):
+        return self.samples[item]
+
     def _data(self):
         """
 
@@ -268,14 +270,14 @@ class Plate(object):
         Organize chip into readings per sample
         :return:
         """
-        sample = []
+        sample = {}
         for label, df in self.data.groupby(by='Sample'):
-            sample.append(Sample(label, df))
+            sample[label] = Sample(label, df)
         return sample
 
     @cached_property
     def normalized_data(self):
-        return pandas.concat([i.data for i in self.samples])
+        return pandas.concat([i.data for i in self.samples.values()])
 
     @cached_property
     def baseline(self):
@@ -300,24 +302,35 @@ class Plate(object):
 
         :return:
         """
-        return self.treatments.pivot_table(
+        self.treatments.loc[:, 'time'] = pandas.to_numeric(self.treatments['time'])
+        self.treatments.loc[:, 'replicate'] = pandas.to_numeric(self.treatments['replicate'])
+        df = self.treatments.pivot_table(
             index=['cell_line', 'treatment',
                    'replicate', 'Assay'],
             columns='time',
             values=['Sample', 'Ct', 'Norm2ref']
         )
+        df['Ct'].columns = [float(i) for i in df['Ct'].columns]
+        return df.sort_index(level=[0, 1], axis=1)
 
     def organize_baseline(self):
         """
 
         :return:
         """
-        return self.baseline.pivot_table(
+        self.baseline.loc[:, 'time'] = pandas.to_numeric(self.baseline['time'])
+        self.baseline.loc[:, 'replicate'] = pandas.to_numeric(self.baseline['replicate'])
+
+
+        # pandas.to_numeric(self.baseline['time'])
+        df = self.baseline.pivot_table(
             index=['cell_line', 'treatment',
                    'replicate', 'Assay'],
             columns='time',
             values=['Sample', 'Ct', 'Norm2ref']
         )
+        df['Ct'].columns = [float(i) for i in df['Ct'].columns]
+        return df.sort_index(level=[0, 1], axis=1)
 
 class SubExperiment(object):
     """
@@ -326,7 +339,6 @@ class SubExperiment(object):
     """
     def __init__(self, id, design, plate_directory):
         """
-
         :param id:
             Either 1, 2 or 3
 
@@ -349,6 +361,9 @@ class SubExperiment(object):
     def __repr__(self):
         return self.__str__()
 
+    def __getitem__(self, item):
+        return self.plates[item]
+
     @cached_property
     def data(self):
         """
@@ -356,7 +371,7 @@ class SubExperiment(object):
         for subexperiment
         :return:
         """
-        return pandas.concat([i.data for i in self.plates])
+        return pandas.concat([i.data for i in self.plates.values()])
 
     @cached_property
     def treatment_data(self):
@@ -364,7 +379,7 @@ class SubExperiment(object):
 
         :return:
         """
-        return pandas.concat(i.treatment_data for i in self.plates)
+        return pandas.concat(i.treatment_data for i in self.plates.values())
 
     @cached_property
     def baseline_data(self):
@@ -372,14 +387,14 @@ class SubExperiment(object):
 
         :return:
         """
-        return pandas.concat(i.baseline_data for i in self.plates)
+        return pandas.concat(i.baseline_data for i in self.plates.values())
 
     @cached_property
     def plates(self):
-        plates = []
+        plates = {}
         for label, df in self.design.groupby(by='Batch'):
             filename = os.path.join(self.plate_directory, df['Filename'].unique()[0])
-            plates.append(Plate(filename, df[df.Batch == label]))
+            plates[label] = Plate(filename, df[df.Batch == label])
         return plates
 
     @cached_property
@@ -496,8 +511,7 @@ class SubExperiment(object):
             time_query
         )
         df = self.design.query(final_query)
-        return self.all_data[self.all_data['Sample'].isin(df['Sample'])]
-
+        return self.data[self.data['Sample'].isin(df['Sample'])]
 
 
 class Experiment(object):
@@ -516,6 +530,9 @@ class Experiment(object):
         self._design = design
         self.root = os.path.dirname(design)
         self.subexperiments = self.create_subexperiments()
+
+    def __getitem__(self, item):
+        return self.subexperiments[item]
 
     @property
     def design(self):
@@ -537,9 +554,9 @@ class Experiment(object):
         objects
         :return:
         """
-        subexperiments = []
+        subexperiments = {}
         for label, df in self.design.groupby(level=0):
-            subexperiments.append(SubExperiment(label, df.loc[label], self.root))
+            subexperiments[label] = SubExperiment(label, df.loc[label], self.root)
         return subexperiments
 
     @cached_property
@@ -548,7 +565,10 @@ class Experiment(object):
 
         :return:
         """
-        return pandas.concat([i.treatment_data for i in self.subexperiments])
+        df = pandas.concat([i.treatment_data for i in self.subexperiments.values()])
+        df = df.swaplevel(0, 1)
+        return df.sort_index(level=[0, 1, 2, 3])
+
 
     @cached_property
     def baseline_data(self):
@@ -556,6 +576,8 @@ class Experiment(object):
 
         :return:
         """
-        return pandas.concat([i.baseline_data for i in self.subexperiments])
+        df = pandas.concat([i.baseline_data for i in self.subexperiments.values()])
+        df = df.swaplevel(0, 1)
+        return df.sort_index(level=[0, 1, 2, 3])
 
 #

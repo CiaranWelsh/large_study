@@ -24,7 +24,7 @@ class TestExperiment(unittest.TestCase):
         have been created with correct id's
         :return:
         """
-        self.assertEqual([1, 2, 3], [i.id for i in self.E.subexperiments])
+        self.assertEqual([1, 2, 3], [i.id for i in self.E.subexperiments.values()])
 
     def test_design_length(self):
         """
@@ -63,7 +63,7 @@ class TestSubExperiment(unittest.TestCase):
 
         self.design_file = r'/home/b3053674/Documents/LargeStudy/GSS2375_WB_NewDur_Grant/new_design.csv'
         self.E = Experiment(self.design_file)
-        self.sub1 = self.E.subexperiments[0]
+        self.sub1 = self.E.subexperiments[1]
 
     def test_sub1_cell_id(self):
         """
@@ -103,7 +103,7 @@ class TestSubExperiment(unittest.TestCase):
         :return:
         """
         self.assertListEqual(
-            self.E.subexperiments[0].plates[0].cell_id, ['A', 'D', 'G']
+            self.E.subexperiments[1].plates[1].cell_id, ['A', 'D', 'G']
         )
 
     def test_well_data_sub_exp2(self):
@@ -113,7 +113,7 @@ class TestSubExperiment(unittest.TestCase):
         :return:
         """
         self.assertListEqual(
-            self.E.subexperiments[1].plates[0].cell_id, ['B', 'E', 'H']
+            self.E.subexperiments[2].plates[8].cell_id, ['B', 'E', 'H']
         )
 
     def test_well_data_sub_exp3(self):
@@ -123,7 +123,7 @@ class TestSubExperiment(unittest.TestCase):
         :return:
         """
         self.assertListEqual(
-            self.E.subexperiments[2].plates[0].cell_id, ['C', 'F', 'I']
+            self.E.subexperiments[3].plates[14].cell_id, ['C', 'F', 'I']
         )
 
     def test_data_cell_lines(self):
@@ -150,13 +150,13 @@ class PlateTests(unittest.TestCase):
     def setUp(self):
         self.design_file = r'/home/b3053674/Documents/LargeStudy/GSS2375_WB_NewDur_Grant/new_design.csv'
         self.E = Experiment(self.design_file)
-        self.sub1 = self.E.subexperiments[0]
-        self.plate1 = self.sub1.plates[0]
-        self.plate2 = self.sub1.plates[1]
-        self.plate3 = self.sub1.plates[2]
-        self.plate4 = self.sub1.plates[3]
-        self.plate5 = self.sub1.plates[4]
-        self.plate6 = self.sub1.plates[5]
+        self.sub1 = self.E.subexperiments[1]
+        self.plate1 = self.sub1.plates[1]
+        self.plate2 = self.sub1.plates[2]
+        self.plate3 = self.sub1.plates[3]
+        self.plate4 = self.sub1.plates[4]
+        self.plate5 = self.sub1.plates[5]
+        self.plate6 = self.sub1.plates[6]
 
     def test_plate1_filename(self):
         filename = '/home/b3053674/Documents/LargeStudy/GSS2375_WB_NewDur_Grant/GSS2375_WellData_p1.txt'
@@ -218,7 +218,7 @@ class PlateTests(unittest.TestCase):
         the control and treated
         :return:
         """
-        treatments = list(set(self.plate1.baseline.index.get_level_values(level='treatment')))
+        treatments = list(set(self.plate1.baseline_data.index.get_level_values(level='treatment')))
         self.assertListEqual(treatments, ['Baseline'])
     #
     def test_treatments(self):
@@ -227,7 +227,7 @@ class PlateTests(unittest.TestCase):
         the control and treated
         :return:
         """
-        treatments = list(set(self.plate1.treatments.index.get_level_values(level='treatment')))
+        treatments = list(set(self.plate1.treatment_data.index.get_level_values(level='treatment')))
         self.assertListEqual(treatments, ['Control', 'TGFb'])
 
 
@@ -240,9 +240,9 @@ class TestSamples(unittest.TestCase):
     def setUp(self):
         self.design_file = r'/home/b3053674/Documents/LargeStudy/GSS2375_WB_NewDur_Grant/new_design.csv'
         self.E = Experiment(self.design_file)
-        self.sub1 = self.E.subexperiments[0]
-        self.plate1 = self.sub1.plates[0]
-        self.s1 = self.plate1.samples[0]
+        self.sub1 = self.E.subexperiments[1]
+        self.plate1 = self.sub1.plates[1]
+        self.s1 = self.plate1.samples['TGFb_24_A_1']
 
     def test_sample_normalization(self):
         """
@@ -260,11 +260,12 @@ class TestSamples(unittest.TestCase):
             in a sample
         :return:
         """
-        B2M_sample1_plate1_sub_exp1 = 20.5107
-        PPIA_sample1_plate1_sub_exp1 = 22.78143
-        geomean = 21.616268787674709
-        ACTA2 = 0.12049530069298593
-        self.assertAlmostEqual(float(self.s1.data.query('Assay == "ACTA2"')['Norm2ref']), ACTA2)
+        B2M_sample1_plate1_sub_exp1 = 20.57081
+        PPIA_sample1_plate1_sub_exp1 = 22.73551
+        ACTA2_normed = 0.45694803996582645
+
+        print self.s1.data
+        self.assertAlmostEqual(float(self.s1.data.query('Assay == "ACTA2"')['Norm2ref']), ACTA2_normed)
 
     def test(self):
         print self.s1.data
