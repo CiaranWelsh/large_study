@@ -10,6 +10,13 @@ class TestExperiment(unittest.TestCase):
         self.design_file = r'/home/b3053674/Documents/LargeStudy/GSS2375_WB_NewDur_Grant/new_design.csv'
         self.E = Experiment(self.design_file)
 
+    def test_number_of_samples(self):
+        """
+        should be 1296
+        :return:
+        """
+        self.assertEqual(1296, len(self.E.all_samples))
+
     def test_subexperiments1(self):
         """
         Test that three sub experiments
