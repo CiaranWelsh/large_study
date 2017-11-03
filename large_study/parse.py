@@ -68,13 +68,18 @@ class Experiment(object):
     Accepts a design file. The design file had date and
     filename columns manually added before processing.
     """
-    def __init__(self, design):
+    def __init__(self, design, max_nan=6):
         """
 
         :param design:
             Path to the design file.
+
+        :param max_nan:
+            If max_nan NaN's present in treated or control profile,
+            remove the data entry. default = 6.
         """
         self._design = design
+        self.max_nan = max_nan
         self.root = os.path.dirname(design)
         self.subexperiments = self.create_subexperiments()
         ## nested unzipping of nested list comprehension to retrieve all sample names from all plates
@@ -129,6 +134,7 @@ class Experiment(object):
         """
         df = pandas.concat([i.treatment_data for i in self.subexperiments.values()])
         # df = df.swaplevel(0, 1)
+        df = df.dropna(axis=0, how='all', thresh=self.max_nan)
         return df.sort_index(level=[0, 1, 2, 3])
 
 
@@ -345,7 +351,6 @@ class Plate(object):
         self.id = os.path.split(filename)[1]
         self.columns = ['Row', 'Column', 'Assay',
                         'Sample', 'Ct']
-        # self.reference_genes = ['BGN', '36B4', 'PPIA']
         self.data = self._data()
 
         self.data = self.normalized_data
@@ -489,7 +494,7 @@ class Sample(object):
     Samples are created by the Plate class.
 
     """
-    def __init__(self, id, data, reference_genes=['B2M']):
+    def __init__(self, id, data, reference_genes=['B2M', 'PPIA']):
         """
 
         :param id:

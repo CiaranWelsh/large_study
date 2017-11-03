@@ -104,3 +104,6 @@ wafergen/.idea/*
 *.~lock*
 .idea/*
 large_study/*.pyc
+GSS2375_NewDur_Grant/Graphs/*
+GSS2375_NewDur_Grant/IndividualGraphs/*
+GSS2375_NewDur_Grant/Graphs/QC*

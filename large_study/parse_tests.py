@@ -60,6 +60,14 @@ class TestExperiment(unittest.TestCase):
         cell_lines = sorted(list(set(self.E.baseline_data.index.get_level_values('cell_line'))))
         self.assertListEqual(cell_lines, ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'])
 
+    def test_max_nan(self):
+        exp = Experiment(self.design_file, max_nan=12)
+        self.assertEqual(exp.treatment_data.shape, (7381, 22))
+
+    def test_max_nan2(self):
+        exp = Experiment(self.design_file, max_nan=8)
+        self.assertEqual(exp.treatment_data.shape, (7302, 22))
+
     def tearDown(self):
         del self.E
 
@@ -274,8 +282,6 @@ class TestSamples(unittest.TestCase):
         print self.s1.data
         self.assertAlmostEqual(float(self.s1.data.query('Assay == "ACTA2"')['Norm2ref']), ACTA2_normed)
 
-    def test(self):
-        print self.s1.data
 
 
 
