@@ -329,7 +329,7 @@ def graphs(graph_id):
                     for g in gene:
                         control_data = treatment_data.loc['Control', rep, g].values
                         tgf_data = treatment_data.loc['TGFb', rep, g].values
-                        data.append(go.Scatter(x=exp.time, y=tgf_data/control_data,
+                        data.append(go.Scatter(x=time, y=tgf_data/control_data,
                                                name='{}_{}_{}'.format(treat, rep, g)))
             print 'ylim --> ', ylim 
             if ylim == 'to_max':
