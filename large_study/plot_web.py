@@ -25,6 +25,7 @@ normalized = False
 design_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'GSS2375_WB_NewDur_Grant')
 design_file = os.path.join(design_file, 'new_design.csv')
 if not os.path.isfile(design_file):
+    os.chdir('..')
     design_file = os.path.abspath(design_file)
 
 if not os.path.isfile(design_file):
