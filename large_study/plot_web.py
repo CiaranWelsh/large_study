@@ -42,8 +42,6 @@ components differ between three classes of cell:
 * Senescent Human Dermal Fibroblasts (Sen). IDs = ['D', 'E', 'F']
 * Adult Human Dermal Fibroblasts (A). IDs = ['G', 'H', 'I']
 
-The cells used in the senescent group were the same cell type as the 
-neonatal group but senescence was induce with x-ray irradiation.
 """
 
 markdown2 = """
@@ -168,12 +166,12 @@ app.layout = html.Div(
             ),
 
             html.Div([
-                html.H3('Set Y axis limit to maximum for gene'),
+                html.H3('Set Y axis limit to'),
                 dcc.RadioItems(
-                    options=[{'label': 'True', 'value': True},
-                             {'label': 'False', 'value': False}],
+                    options=[{'label': 'Max', 'value': 'to_max'},
+                             {'label': 'False', 'value':  False}],
                     id='ylim',
-                    value=True,
+                    value=False,
                     labelStyle={'display': 'inline-block'}
                 )],
             ),
@@ -189,15 +187,13 @@ app.layout = html.Div(
                 )],
             ),
 
-
-                html.Div([
+            html.Div([
                 html.H2('Genes to Plot'),
                 dcc.Dropdown(
                     options=[{'label': g, 'value': g} for g in genes],
                     id='gene_dropdown',
-                    value=genes[0])
-            ])
-            ],
+                    value=genes[0])]
+            )],
         ),
 
         html.Div([
@@ -223,25 +219,6 @@ app.layout = html.Div(
     ])
 
 
-def get_highest(gene_name, norm):
-    """
-    Get highest reading for gene_name accross all
-    cell lines, treatments and time points
-    :param gene_name:
-    :return:
-    """
-    if norm not in ['Ct', 'Norm2ref']:
-        raise ValueError
-
-    if gene_name not in genes:
-        raise ValueError('"{}" not in "{}"'.format(gene_name, genes))
-
-    d = [i for i in exp.treatment_data[norm].groupby(level=[3])]
-    for i in d:
-        if i[0] == gene_name:
-            return i[1].max().max()
-
-# print get_highest('SMAD7', 'Norm2ref')
 def graphs(graph_id):
     @app.callback(
         Output(graph_id, 'figure'),
@@ -263,6 +240,7 @@ def graphs(graph_id):
         print 'norm:', norm
         print 'replicate:', replicate
         print 'ylim', ylim
+        print 'secondary_norm', secondary_norm
         if not isinstance(treatment, list):
             treatment = [treatment]
 
@@ -271,48 +249,91 @@ def graphs(graph_id):
 
         cell_id = graph_id.split(':')[0]
 
-        treatment_data = exp.treatment_data.loc[cell_id][norm]
-        baseline_data = exp.baseline_data.loc[cell_id][norm]
-        control_data = ''
-        tgf_data = ''
-        base_data = ''
+        treatment_data = exp.treatment_data.loc[cell_id][norm][time]
+        baseline_data = exp.baseline_data.loc[cell_id][norm][baseline_time]
+        control_data = {}
+        tgf_data = {}
+        base_data = {}
 
+        highest = {}
+        lowest = {}
+        d = [i for i in exp.treatment_data[norm][time].groupby(level=[3])]
+        for i in d:
+            for g in gene:
+                if i[0] == g:
+                    highest[g] = i[1].max().max() + 0.1 * i[1].max().max()
+                    lowest[g] = i[1].min().min() + 0.1 * i[1].min().min()
+
+        if highest == {}:
+            raise ValueError('highest is {}')
+
+        if lowest is {}:
+            raise ValueError
+
+        colour = 'Pastle2'
+        data = []
         if secondary_norm is None:
-            data = []
             for treat in treatment:
                 for rep in replicate:
                     for g in gene:
                         if treat == u'Control':
-                            control_data = treatment_data.loc[treat, rep, g].values
-                            data.append(go.Scatter(x=exp.time, y=control_data,
-                                        name='{}_{}_{}'.format(treat, rep, g)))
+                            control_data[g] = treatment_data.loc[treat, rep, g].values
+                            data.append(go.Scatter(x=exp.time,
+                                                   y=control_data[g],
+                                                   name='{}_{}_{}'.format(treat, rep, g),
+                                                   line={'color': colour}
+                                                   )
+                                        )
 
                         elif treat == u'TGFb':
-                            tgf_data = treatment_data.loc[treat, rep, g].values
-                            data.append(go.Scatter(x=exp.time, y=tgf_data,
-                                        name='{}_{}_{}'.format(treat, rep, g)))
+                            tgf_data[g] = treatment_data.loc[treat, rep, g].values
+                            data.append(go.Scatter(x=exp.time, y=tgf_data[g],
+                                                   name='{}_{}_{}'.format(treat, rep, g),
+                                                   line={'color': colour}
+                                                   )
+                                        )
 
                         elif treat == u'Baseline':
-                            base_data = baseline_data.loc[treat, rep, g].values
-                            data.append(go.Scatter(x=[0, 96], y=base_data,
-                                        name='{}_{}_{}'.format(treat, rep, g)))
-        elif secondary_norm is 'fold_change':
-            pass
-        
-        highest = max([get_highest(i, norm) for i in gene])
-        if ylim:
-            print 'ylim is', ylim
-            layout = go.Layout(title=graph_id,
-                               xaxis=dict(title='Time(h)'),
-                               yaxis=dict(title='AU',
-                                          range=[0, highest]))
-        else:
-            print 'ylim not'
-            layout = go.Layout(title=graph_id,
-                               xaxis=dict(title='Time(h)'),
-                               yaxis=dict(title='AU'))
+                            base_data[g] = baseline_data.loc[treat, rep, g].values
+                            data.append(go.Scatter(x=[0, 96], y=base_data[g],
+                                                   name='{}_{}_{}'.format(treat, rep, g),
+                                                   line={'color': colour}
+                                                   )
+                                        )
 
-        return go.Figure(data=data, layout=layout)
+            if ylim == 'to_max':
+                layout = go.Layout(title=graph_id,
+                                   xaxis=dict(title='Time(h)'),
+                                   yaxis=dict(title='AU',
+                                              range=[0, highest[g]]))
+
+            elif ylim == False:
+                layout = go.Layout(title=graph_id,
+                                   xaxis=dict(title='Time(h)'),
+                                   yaxis=dict(title='AU'))\
+
+            return go.Figure(data=data, layout=layout)
+
+        elif secondary_norm == 'fold_change':
+            for treat in treatment:
+                for rep in replicate:
+                    for g in gene:
+                        control_data = treatment_data.loc['Control', rep, g].values
+                        tgf_data = treatment_data.loc['TGFb', rep, g].values
+                        data.append(go.Scatter(x=exp.time, y=tgf_data/control_data,
+                                               name='{}_{}_{}'.format(treat, rep, g)))
+            print 'ylim --> ', ylim
+            if ylim == 'to_max':
+                layout = go.Layout(title=graph_id,
+                                   xaxis=dict(title='Time(h)'),
+                                   yaxis=dict(title='TGFb / Control (Fold Change)'))
+
+            elif ylim == False:
+                layout = go.Layout(title=graph_id,
+                                   xaxis=dict(title='Time(h)'),
+                                   yaxis=dict(title='TGFb / Control (Fold Change)'))
+
+            return go.Figure(data=data, layout=layout)
 
 graph_ids = ['A:Neonatal1', 'B:Neonatal2', 'C:Neonatal3',
              'D:Senescent1', 'E:Senescent2', 'F:Senescent3',
