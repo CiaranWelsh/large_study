@@ -22,7 +22,8 @@ averaged = False
 normalized = False
 
 
-design_file = r'/home/b3053674/Documents/LargeStudy/GSS2375_WB_NewDur_Grant/new_design.csv'
+design_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'GSS2375_WB_NewDur_Grant')
+design_file = os.path.join(design_file, 'new_design.csv')
 exp = Experiment(design_file)
 sample_keys = exp.subexperiments[1].plates[1].samples.keys()
 genes = exp.subexperiments[1].plates[1].samples[sample_keys[0]].genes
