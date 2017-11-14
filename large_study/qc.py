@@ -108,8 +108,10 @@ def get_gene_batches(n=6):
     :return:
     """
     len_genes = len(exp.genes)
-    if len_genes % n is not 0:
-        raise ValueError('not exactly divisible. Pick another n number')
+    # if len_genes % n is not 0:
+    #     raise ValueError('{} / {} not exactly divisible. Pick another n number'.format(
+    #         len(exp.genes), n
+    #     ))
 
     num_per_batch = len_genes / n
     gene_list = []
@@ -128,12 +130,15 @@ def get_gene_batches(n=6):
 
 
 if __name__ == '__main__':
+
     # pca(exp, ['SMAD7', 'SMAD3'])
 
     gene_list = get_gene_batches()
-    print gene_list
-    print len(gene_list)
-    print len(gene_list[0])
+    for i in gene_list:
+        pca(exp, i)
+    # print gene_list
+    # print len(gene_list)
+    # print len(gene_list[0])
 
 
 

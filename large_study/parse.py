@@ -742,3 +742,13 @@ class Query(Experiment):
             return self.data.loc[self.treatment, self.cell_id,
                                  self.replicate, self.gene]['Ct'][self.time]
 
+
+
+if __name__ == '__main__':
+    dire = r'/home/b3053674/Documents/LargeStudy/GSS2375_WB_NewDur_Grant'
+    design_file = os.path.join(dire, 'new_design.csv')
+
+    E = Experiment(design_file)
+    print E.treatment_data
+    # res = Query(E, 'Control', cell_id='A').result
+    # print res
