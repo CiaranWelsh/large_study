@@ -322,7 +322,7 @@ def graphs(graph_id):
                         tgf_data = treatment_data.loc['TGFb', rep, g].values
                         data.append(go.Scatter(x=exp.time, y=tgf_data/control_data,
                                                name='{}_{}_{}'.format(treat, rep, g)))
-            print 'ylim --> ', ylim
+            print 'ylim --> ', ylim 
             if ylim == 'to_max':
                 layout = go.Layout(title=graph_id,
                                    xaxis=dict(title='Time(h)'),
