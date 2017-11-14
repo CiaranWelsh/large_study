@@ -287,7 +287,7 @@ def graphs(graph_id):
                     for g in gene:
                         if treat == u'Control':
                             control_data[g] = treatment_data.loc[treat, rep, g].values
-                            data.append(go.Scatter(x=exp.time,
+                            data.append(go.Scatter(x=time,
                                                    y=control_data[g],
                                                    name='{}_{}_{}'.format(treat, rep, g),
                                                    line={'color': colour}
@@ -296,7 +296,7 @@ def graphs(graph_id):
 
                         elif treat == u'TGFb':
                             tgf_data[g] = treatment_data.loc[treat, rep, g].values
-                            data.append(go.Scatter(x=exp.time, y=tgf_data[g],
+                            data.append(go.Scatter(x=time, y=tgf_data[g],
                                                    name='{}_{}_{}'.format(treat, rep, g),
                                                    line={'color': colour}
                                                    )
