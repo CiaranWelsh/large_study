@@ -24,6 +24,13 @@ normalized = False
 
 design_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'GSS2375_WB_NewDur_Grant')
 design_file = os.path.join(design_file, 'new_design.csv')
+if not os.path.isfile(design_file):
+    design_file = os.path.abspath(design_file)
+
+if not os.path.isfile(design_file):
+    raise ValueError('"{}" not valid file'.format(design_file))
+
+# design_file = os.path
 exp = Experiment(design_file)
 sample_keys = exp.subexperiments[1].plates[1].samples.keys()
 genes = exp.subexperiments[1].plates[1].samples[sample_keys[0]].genes
