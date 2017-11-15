@@ -6,9 +6,11 @@ import plotly.graph_objs as go
 from dash.dependencies import Input, Output
 from parse import *
 import functools32
+from flask import Flask
 
+server = Flask(__name__)
 
-app = dash.Dash()
+app = dash.Dash(server=server)
 
 app.css.append_css({"external_url": "https://codepen.io/chriddyp/pen/bWLwgP.css"})
 

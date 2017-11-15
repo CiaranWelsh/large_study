@@ -101,7 +101,7 @@ class Experiment(object):
     def __getitem__(self, item):
         return self.subexperiments[item]
 
-    @property
+    @cached_property
     def design(self):
         df = pandas.read_csv(self._design)
         df = df.rename(columns={
