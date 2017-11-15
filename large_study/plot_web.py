@@ -12,16 +12,6 @@ app = dash.Dash()
 
 app.css.append_css({"external_url": "https://codepen.io/chriddyp/pen/bWLwgP.css"})
 
-subexperiment = 1
-plate = 1
-cell_id = 'A'
-treatments = 'TGFb'
-time = 'all'
-repeats = 'all'
-averaged = False
-normalized = False
-
-
 design_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'GSS2375_WB_NewDur_Grant')
 design_file = os.path.join(design_file, 'new_design.csv')
 if not os.path.isfile(design_file):
@@ -250,6 +240,7 @@ def graphs(graph_id):
         print 'replicate:', replicate
         print 'ylim', ylim
         print 'secondary_norm', secondary_norm
+        time = sorted(time)
         if not isinstance(treatment, list):
             treatment = [treatment]
 
@@ -329,7 +320,7 @@ def graphs(graph_id):
                     for g in gene:
                         control_data = treatment_data.loc['Control', rep, g].values
                         tgf_data = treatment_data.loc['TGFb', rep, g].values
-                        data.append(go.Scatter(x=exp.time, y=tgf_data/control_data,
+                        data.append(go.Scatter(x=time, y=tgf_data/control_data,
                                                name='{}_{}_{}'.format(treat, rep, g)))
             print 'ylim --> ', ylim 
             if ylim == 'to_max':
