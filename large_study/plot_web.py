@@ -68,7 +68,7 @@ app.layout = html.Div(
     children=[
 
         ## Markdown Text
-        html.Div([html.H1('Analysis of WaferGen Data for Large Study', style={'textAlign': 'center'}),
+        html.Div([html.H1('WaferGen Data From Dermal Fibroblasts treated with 5ng/mL TGFb', style={'textAlign': 'center'}),
                   html.H2('Background', style={'textAlign': 'center'}),
                   dcc.Markdown(markdown1),
                   html.H2('Treatment', style={'textAlign': 'center'}),
