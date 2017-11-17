@@ -7,10 +7,29 @@ from dash.dependencies import Input, Output
 from parse import *
 import functools32
 from flask import Flask
+import dash_auth
+
+
+VALID_USERNAME_PASSWORD_PAIRS = [
+    ['Ciaran', 'Welsh',
+     'Daryl', 'Shanley',
+     'Stefan', 'Pryzborski',
+     'Nicola', 'Fullard',
+     'Bob', 'Isfort',
+     'Charlie', 'Bascom',
+     'Ryan', 'Tassef']
+]
+
+
 
 server = Flask(__name__)
 
 app = dash.Dash(server=server)
+
+auth = dash_auth.BasicAuth(
+    app,
+    VALID_USERNAME_PASSWORD_PAIRS
+)
 
 app.css.append_css({"external_url": "https://codepen.io/chriddyp/pen/bWLwgP.css"})
 
@@ -29,7 +48,7 @@ sample_keys = exp.subexperiments[1].plates[1].samples.keys()
 genes = exp.subexperiments[1].plates[1].samples[sample_keys[0]].genes
 
 
-GRAPH_WIDTH = 600
+GRAPH_WIDTH = 500
 GRAPH_HEIGHT = 400
 
 markdown1 = """
