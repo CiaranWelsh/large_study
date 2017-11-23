@@ -487,13 +487,12 @@ def graphs(graph_id):
             return go.Figure(data=data, layout=layout)
 
         elif secondary_norm == 'fold_change':
-            for treat in treatment:
-                for rep in replicate:
-                    for g in gene:
-                        control_data = treatment_data.loc['Control', rep, g].values
-                        tgf_data = treatment_data.loc['TGFb', rep, g].values
-                        data.append(go.Scatter(x=time, y=tgf_data/control_data,
-                                               name='{}'.format(rep)))
+            for rep in replicate:
+                for g in gene:
+                    control_data = treatment_data.loc['Control', rep, g].values
+                    tgf_data = treatment_data.loc['TGFb', rep, g].values
+                    data.append(go.Scatter(x=time, y=tgf_data/control_data,
+                                           name='{}'.format(rep)))
             if ylim == 'to_max':
                 layout = go.Layout(title=graph_id,
                                    xaxis=dict(title='Time(h)'),
