@@ -50,6 +50,8 @@ because it only has the 0 and 96h time points. Each of the :py:class:`Experiment
 
 
 import pandas, numpy
+import seaborn
+import matplotlib.pyplot as plt
 import os, glob
 from copy import deepcopy
 from scipy.stats.mstats import gmean
@@ -60,6 +62,86 @@ from cached_property import cached_property
 logging.basicConfig(level=logging.DEBUG)
 
 pandas.options.mode.chained_assignment = None
+
+
+class QuantileNormalization(object):
+    def __init__(self, data_dir, new_dir):
+        self.data_dir = data_dir
+        self.new_dir = new_dir
+
+        if not os.path.isdir(self.new_dir):
+            os.makedirs(self.new_dir)
+
+        self.normalized_data = self.normalize_data()
+
+
+    def normalize(self, data_frame, method='mean'):
+        """
+        Quantile normalize a dataframe
+        :param data_frame:
+        :return:
+        """
+        df = data_frame.copy()
+        #compute rank
+        dic = {}
+        for col in df:
+            dic.update({col: sorted(df[col])})
+        sorted_df = pandas.DataFrame(dic)
+        if method == 'mean':
+            rank = sorted_df.mean(axis=1).tolist()
+
+        elif method == 'median':
+            rank = sorted_df.median(axis=1).tolist()
+
+        else:
+            raise TypeError('"method" argument should be either "mean" or "median"')
+        #sort
+        for col in df:
+            t = numpy.searchsorted(numpy.sort(df[col]), df[col])
+            df[col] = [rank[i] for i in t]
+        return df
+    #
+    def to_file(self):
+        stensil = r'GSS2375_WellData'
+        for i in self.normalized_data:
+            fname = stensil+'_p{}.txt'.format(i)
+            fname = os.path.join(self.new_dir, fname)
+            self.normalized_data[i].to_csv(fname, sep='\t')
+
+    def plot_distributions(self, by='Ct'):
+        data = pandas.DataFrame({i: j[by] for i, j in self.normalized_data.items()})
+        plt.figure()
+        seaborn.set(context='talk')
+        for i in data:
+            seaborn.kdeplot(data[i])
+            plt.ylabel('frequency')
+            plt.xlabel(by)
+        plt.show()
+        # for i in data:
+            #     seaborn.distplot(self.normalized_data[i]['Ct'])
+
+
+    def normalize_data(self):
+        """
+        Does quantile normalization per sample not
+        per chip
+        :return:
+        """
+        data_files = glob.glob(os.path.join(self.data_dir, '*WellData*'))
+        data_files = {int(i.split('_')[-1][1:-4]): i for i in data_files}
+        data = {i: pandas.read_csv(j, sep='\t', index_col=['Sample', 'Assay']) for i, j in data_files.items()}
+        dct = {}
+        for i in data:
+            dct[i] = data[i]['Ct'].unstack().transpose()
+        df = pandas.concat(dct, axis=1)
+        df_mean = self.normalize(df, 'mean')
+        df_median = self.normalize(df, 'median')
+        df_dct = {}
+        for i in sorted(list(set(df.columns.get_level_values(0)))):
+            df_dct[i] = df[i].transpose().stack()
+            data[i]['CtQuantileNormalizedMean'] = df_mean[i].transpose().stack()
+            data[i]['CtQuantileNormalizedMedian'] = df_median[i].transpose().stack()
+        return data
 
 class Experiment(object):
     """
