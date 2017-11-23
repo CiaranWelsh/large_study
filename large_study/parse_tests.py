@@ -8,6 +8,7 @@ from parse import *
 class TestExperiment(unittest.TestCase):
     def setUp(self):
         self.design_file = r'/home/b3053674/Documents/LargeStudy/GSS2375_WB_NewDur_Grant/new_design.csv'
+        self.design_file = r'/home/b3053674/Documents/LargeStudy/QuantileNormalizedData/new_design.csv'
         self.E = Experiment(self.design_file)
 
     def test_number_of_samples(self):
@@ -77,6 +78,8 @@ class TestSubExperiment(unittest.TestCase):
         large_study_dir = r'/home/b3053674/Documents/LargeStudy/GSS2375_WB_NewDur_Grant'
 
         self.design_file = r'/home/b3053674/Documents/LargeStudy/GSS2375_WB_NewDur_Grant/new_design.csv'
+        self.design_file = r'/home/b3053674/Documents/LargeStudy/QuantileNormalizedData/new_design.csv'
+
         self.E = Experiment(self.design_file)
         self.sub1 = self.E.subexperiments[1]
 
@@ -164,6 +167,7 @@ class TestSubExperiment(unittest.TestCase):
 class PlateTests(unittest.TestCase):
     def setUp(self):
         self.design_file = r'/home/b3053674/Documents/LargeStudy/GSS2375_WB_NewDur_Grant/new_design.csv'
+        self.design_file = r'/home/b3053674/Documents/LargeStudy/QuantileNormalizedData/new_design.csv'
         self.E = Experiment(self.design_file)
         self.sub1 = self.E.subexperiments[1]
         self.plate1 = self.sub1.plates[1]
@@ -175,7 +179,7 @@ class PlateTests(unittest.TestCase):
 
     def test_plate1_filename(self):
         filename = '/home/b3053674/Documents/LargeStudy/GSS2375_WB_NewDur_Grant/GSS2375_WellData_p1.txt'
-        self.assertEqual(self.plate1.filename, filename)
+        self.assertEqual(os.path.split(self.plate1.filename)[1], os.path.split(filename)[1])
 
     def test_plate1_replicate(self):
         self.assertEqual(self.plate1.replicate, 1)
@@ -246,7 +250,6 @@ class PlateTests(unittest.TestCase):
         self.assertListEqual(treatments, ['Control', 'TGFb'])
 
 
-
     def tearDown(self):
         pass
 
@@ -254,6 +257,7 @@ class PlateTests(unittest.TestCase):
 class TestSamples(unittest.TestCase):
     def setUp(self):
         self.design_file = r'/home/b3053674/Documents/LargeStudy/GSS2375_WB_NewDur_Grant/new_design.csv'
+        self.design_file = r'/home/b3053674/Documents/LargeStudy/QuantileNormalizedData/new_design.csv'
         self.E = Experiment(self.design_file)
         self.sub1 = self.E.subexperiments[1]
         self.plate1 = self.sub1.plates[1]
