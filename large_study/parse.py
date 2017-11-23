@@ -88,6 +88,9 @@ class Experiment(object):
             [self.subexperiments[i].plates[j].samples.keys() for i in self.subexperiments for j in self.subexperiments[i].plates]
         )
 
+        if len(self.all_samples) != 1296:
+            raise Exception('length of all samples should be 1296, not "{}"'.format(len(self.all_samples)))
+
         self.cell_lines = sorted(reduce(
             lambda x, y: x+y, [self.subexperiments[i].cell_id for i in self.subexperiments]
         ))
@@ -241,7 +244,6 @@ class SubExperiment(object):
     @cached_property
     def lot_numbers(self):
         return self.design['Lot.Number'].unique()
-
 
     def get(self, query):
         """
