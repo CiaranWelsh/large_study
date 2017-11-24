@@ -1,3 +1,4 @@
+#-*- coding: utf-8 -*-
 import os
 import site
 site.addsitedir(os.path.dirname(os.path.dirname(__file__)))
@@ -63,10 +64,9 @@ variables:
 * Time points: n=11
 * Normalized: Boolean
     
-Here we lay the data out with time in the columns and all other variables 
-in the rows. We then split the data at which ever variable is chosen 
-before doing a PCA on the split data and reducing the 11 time points 
-to 2D data. Generally the two components explains ~97% of the variance. 
+Here we lay the data out with samples along columns and genes down 
+ the rows. The PCA is calculated and the first three PCs are 
+displayed in 3D. 
         
 PCA cannot handle missing values. Our strategy for handling missing data 
 is to set a threshold for the maximum number of missing values per time course.
@@ -131,41 +131,33 @@ app.layout = html.Div([
                 labelStyle={'display': 'inline-block'},
             ),
 
-            # dcc.RadioItems(
-            #     options=[
-            #         {'label': 'Raw Ct Values', 'value': 'Ct'},
-            #         {'label': 'Normalized delta Ct', 'value': 'Norm2ref'}
-            #     ],
-            #     value='Ct',
-            #     id='plotly_mode',
-            #     labelStyle={'display': 'inline-block'},
-            # ),
-
-            html.H2('Pick Factor(s)'),
-
-            html.H3('Multi-dropdown'),
-            dcc.RadioItems(
-                options=[
-                    {'label': 'True', 'value': True},
-                    {'label': 'False', 'value': False},
-                ],
-                labelStyle={'display': 'inline-block'},
-                value=False,
-                id='multi_dropdown_bool',
-            ),
-
-            html.Label('Note: In "multi-mode" Order affects the colour scale (i.e. try selecting '
-                       'treatments then assay or vice versa)'),
-
-            dcc.Dropdown(
-                options=[{'label': factor, 'value': factor} for factor in factors],
-                value=['time_point'],
-                id='factor',
-            ),
+            html.Div([
+                html.H2('Choose data point label'),
+                dcc.Checklist(
+                    id='text',
+                    options=[{'label': i, 'value': i} for i in factors],
+                    values=['treatment'],
+                    labelStyle={'display': 'inline-block'},
+                )],
+                # style={'width': '75%'}
+            )
         ]),
 
+        html.Div([
+            html.H2('Query the Data'),
+            dcc.Markdown('Construct a [query](https://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.query.html) '
+                          'for a pandas data frame to subset the data before plotting'),
+            dcc.Input(id='input-1-state', type="text", value='All Data'),
+            html.Button(id='submit-button', n_clicks=0, children='Submit'),
+            html.Div(id='output-state')
+        ]),
 
     html.Div([
+        dcc.Markdown('''## Explained Variance
+        * PC1 (x) = 38.29%
+        * PC2 (y) = 7.94%
+        * PC3 (z) = 6.9%
+         '''),
         dcc.Graph(
             id='pca_graph',
             style={'height': 1000}
@@ -175,44 +167,7 @@ app.layout = html.Div([
 
     html.Label('Note: click on a legend label to toggle it on or off. Double click a legend label to '
                'isolate that trace'),
-
-    html.Div([
-        html.Br(),
-        html.H2('Colour Saturation'),
-        dcc.Slider(
-            min=0,
-            max=100,
-            step=1,
-            value=50,
-            id='saturation'
-        ),
-
-        html.Br(),
-        html.H2('Colour Brightness'),
-        dcc.Slider(
-            min=0,
-            max=100,
-            step=1,
-            value=50,
-            id='lightness'
-        )],
-
-        dcc.RadioItems(
-            id='query-radio',
-            options=[
-                {'label': "treatment == 'TGFb'", 'value': "treatment == 'TGFb'"}
-            ]
-        ),
-
-        # dcc.Input(id='input-box'),
-        # dcc.Graph(id='pca'),
-        #
-        # html.Div(id='query', style={'display': 'none'}),
-        # #
-        # dcc.Input(id='query-box'),
-
-        # html.Button(id='submit-button', n_clicks=0, children='submit'),
-    )],
+    ],
     style={
         'textAlign': 'center',
         'margin-left': 'auto',
@@ -222,28 +177,28 @@ app.layout = html.Div([
 )
 
 
-# @app.callback(
-#     Output('factor', 'multi'),
-#     [Input('multi_dropdown_bool', 'value')]
-# )
-# def set_multi_dropdown(boolean):
-#     return boolean
-
-"""
-Build query interface. 
-
-List of common queries and an input box to create your own
-"""
+exp = Experiment(design_file)
 
 
-# def do_pca_groupby(thresh, strategy, norm, factor=None,
-#                    saturation='50%', lightness='50%'):
-# @app.callback(
-#     Output('query', 'children'),
-#     [Input('query-box', 'value')]
-# )
-# def create_query(query):
-#     return "{}".format(query)
+@app.callback(Output('output-state', 'children'),
+              [Input('submit-button', 'n_clicks')],
+              [State('input-1-state', 'value')])
+def update_output(n_clicks, input1):
+    return input1
+
+
+
+def str_join(df, sep, *cols):
+    from functools import reduce
+    return reduce(lambda x, y: x.astype(str).str.cat(y.astype(str), sep=sep),
+                  [df[col] for col in cols])
+
+def print_full(df):
+    default = pandas.get_option('display.max_rows')
+    pandas.set_option('display.max_rows', df.shape[0])
+    print df
+    pandas.set_option('display.max_rows', default)
+
 
 @app.callback(
     Output('pca_graph', 'figure'),
@@ -251,144 +206,132 @@ List of common queries and an input box to create your own
         Input('nan_thresh', 'value'),
         Input('imputation_strategy', 'value'),
         Input('norm', 'value'),
-        Input('factor', 'value'),
-        Input('saturation', 'value'),
-        Input('lightness', 'value'),
+        # Input('factor', 'value'),
+        Input('output-state', 'children'),
+        Input('text', 'values'),
     ]
 )
-def do_pca_groupby(thresh, strategy, norm, factor,
-                   saturation, lightness):
-    """
-    Do PCA with the entire dataframe (i.e. one data point per time point
+def do_pca_groupby(thresh, strategy, norm,
+                   output_state, text):
+        """
+        Do PCA with the entire dataframe (i.e. one data point per time point
 
-    :return:
-    """
-    treatment_data = exp.treatment_data[norm].stack()
-    baseline_data = exp.baseline_data[norm].stack()
-    data = pandas.concat([treatment_data, baseline_data])
-    data = pandas.DataFrame(data)
-    data.columns = [norm]
-    '''
-    How many measurements shold I have?
+        :return:
+        """
+        treatment_data = exp.treatment_data[norm].stack()
+        baseline_data = exp.baseline_data[norm].stack()
+        data = pandas.concat([treatment_data, baseline_data])
+        data = pandas.DataFrame(data)
+        data.columns = [norm]
+        '''
+        How many measurements shold I have?
+    
+        1296 samples, each with 72 readings --> 93312
+        Many have been removed automatically due to poor quality
+        '''
+        data = data.reset_index()
 
-    1296 samples, each with 72 readings --> 93312
-    Many have been removed automatically due to poor quality
-    '''
-    data = data.reset_index()
+        data = data.rename(columns={
+            'cell_line': 'cell_id',
+            # 'time_point': 'time',
+        })
+        # # print treatment.head()
+        design = exp.design
+        design = design.reset_index()
+        data = data.merge(design, on=['cell_id', 'replicate', 'treatment'])
 
-    data = data.rename(columns={
-        'cell_line': 'cell_id',
-        # 'time_point': 'time',
-    })
-    # # print treatment.head()
-    design = exp.design
-    design = design.reset_index()
-    print design.keys()    # print design.head()
-    data = data.merge(design, on=['cell_id', 'replicate', 'treatment'])
+        data = data.drop([u'Lot.Number', u'WG.Plate', u'factor1', u'factor2',
+                          u'Iso.Order', u'Iso.Row', u'Label.Row', u'Label.Order',
+                          u'Label.Col', u'Iso.Col', u'Batch', u'RNAYield(ug)'], axis=1)
+        #'cell_id', 'treatment', 'replicate', 'sub_experiment',
+                # 'cell_line', 'Treatment Start Date', 'Filename', 'Sample', 'Assay',
+                # 'time_point'
+        data = data.pivot_table(columns=['Sample', 'cell_id', 'replicate',
+                                         'treatment', 'time_point', 'Treatment Start Date',
+                                         'sub_experiment', 'Filename', 'cell_line'], index='Assay')
+        data = data.drop('time', axis=1)
+        if data.shape != (72, 1296):
+            raise ValueError
 
-    data = data.drop([u'Lot.Number', u'WG.Plate', u'factor1', u'factor2',
-                      u'Iso.Order', u'Iso.Row', u'Label.Row', u'Label.Order',
-                      u'Label.Col', u'Iso.Col', u'Batch', u'RNAYield(ug)'], axis=1)
-    #'cell_id', 'treatment', 'replicate', 'sub_experiment',
-            # 'cell_line', 'Treatment Start Date', 'Filename', 'Sample', 'Assay',
-            # 'time_point'
-    print data.keys()
-    data = data.pivot_table(columns=['Sample', 'cell_id', 'replicate',
-                                     'treatment', 'time_point', 'Treatment Start Date',
-                                     'sub_experiment', 'Filename', 'cell_line'], index='Assay')
-    data = data.drop('time', axis=1)
-    if data.shape != (72, 1296):
-        raise ValueError
+        data.dropna(axis=0, how='all', thresh=thresh, inplace=True)
+        I = Imputer(axis=1, strategy=strategy)
+        data = pandas.DataFrame(I.fit_transform(data), index=data.index, columns=data.columns)
+        data = data.transpose()
+        pca = PCA(10)
 
-    # pca = PCA(2)
-    # pca.fit(data)
-    # print pca.explained_variance_
-    # data = data.set_index(factors)
-    data.dropna(axis=0, how='all', thresh=thresh, inplace=True)
-    I = Imputer(axis=1, strategy=strategy)
-    data = pandas.DataFrame(I.fit_transform(data), index=data.index, columns=data.columns)
-    data = data.transpose()
-    pca = PCA(10)
-    pca.fit(data)
+        pca.fit(data)
 
-    # pandas.DataFrame(pca.explained_variance_).plot()
-    # plt.show()
+        explained_var = pandas.DataFrame(pca.explained_variance_)
+        print explained_var
+        plt.show()
 
-    df = pandas.DataFrame(pca.transform(data), index=data.index)
-    df = df[[0, 1]]
+        df = pandas.DataFrame(pca.transform(data), index=data.index)
+        df = df[[0, 1, 2]]
 
-    return {
-        'data': go.Scatter(x=range(10), y=range(10)),
-        'layout': go.Layout(title='t')
-    }
-    #.query("treatment == 'TGFb'")
-    # colors = ['hsl({},{}%,{}%)'.format(h, saturation, lightness) for h in numpy.linspace(0, 300, len(groupby_obj))]
-    # labels = []
-    # for label, df in groupby_obj:
-    #     labels.append(label)
-    #
-    # colours = dict(zip(labels, colors))
-    #
-    # traces = []
-    # for label, df in groupby_obj:
-    #     if isinstance(label, tuple):
-    #         name = reduce(lambda x, y: '{}_{}'.format(x, y), label)
-    #     else:
-    #         name = label
-    #     df = df.transpose()
-    #     pca = PCA(2)
-    #     pca.fit(df)
-    #     pc = pandas.DataFrame(pca.transform(df), index=df.index)
-    #
-    #     trace = go.Scatter(
-    #         x=pc[0],
-    #         y=pc[1],
-    #         mode='markers+text+lines',
-    #         name=name,
-    #         marker=dict(
-    #             color=colours[label],
-    #             size=15,
-    #         ),
-    #         text=['{}h'.format(i) for i in pc.index],
-    #         textposition='bottom',
-    #     )
-    #     traces.append(trace)
-    #
-    # if isinstance(factor, (str, unicode)):
-    #     factor = [factor]
-    #
-    # layout = go.Layout(
-    #     title='PCA Data Split by "{}"'.format(reduce(lambda x, y: "{}, {}".format(x, y), factor)),
-    #     titlefont=dict(
-    #         size=35
-    #     ),
-    #     hovermode='closest',
-    #     legend=dict(
-    #         x=-0.15,
-    #         y=1,
-    #         bgcolor='#E2E2E2'),
-    #     hoverlabel=dict(namelength=-1),
-    #     xaxis=dict(
-    #         title='PC1',
-    #         titlefont=dict(
-    #             size=20
-    #         )
-    #
-    #         ),
-    #     yaxis=dict(
-    #         title='PC2',
-    #         titlefont=dict(
-    #             size=20
-    #         )
-    #
-    #     )
-    # )
-    # return {
-    #     'data': traces,
-    #     'layout': layout
-    # }
+        df = df.reset_index()
+
+        df = df.sort_values(by=text)
 
 
+        print 'text is' , text
+
+        if text != 'All Data':
+
+            try:
+                df = df.query(output_state)
+            except SyntaxError:
+                print 'Query "{}" caused Syntax error'.format(output_state)
+
+        print_full(df)
+        print df.shape
+        print str_join(df, '_', *text)
+        colors = ['hsl({},50%,50%)'.format(h) for h in numpy.linspace(0, 300, df.shape[0])]
+        df.to_csv('df.csv')
+
+        trace = go.Scatter3d(
+            x=df[0],
+            y=df[1],
+            z=df[2],
+            mode='markers+text',
+            text=str_join(df, '_', *text),
+            textposition='bottom',
+        )
+        layout = go.Layout(
+            title='PCA',
+            titlefont=dict(
+                size=35
+            ),
+            hovermode='closest',
+            legend=dict(
+                x=-0.15,
+                y=1,
+                bgcolor='#E2E2E2'),
+            hoverlabel=dict(namelength=-1),
+
+            xaxis=dict(
+                title='PC1 Explained Variance {}%'.format(explained_var.iloc[0]),
+                titlefont=dict(size=20)
+                ),
+
+            yaxis=dict(
+                title='PC2 Explained Variance {}%'.format(explained_var.iloc[1]),
+                titlefont=dict(size=20)
+            ),
+
+            # zaxis=dict(
+            #     title='PC3 Explained Variance {}%'.format(explained_var.iloc[2]),
+            #     titlefont=dict(size=20)
+            # )
+        )
+
+
+        # print df
+        # import plotly
+        # plotly.offline.plot(go.Figure(data=[trace], layout=layout))
+        return {
+            'data': [trace],
+            'layout': layout,
+        }
 
 # do_pca_groupby(5, 'median', 'Ct', )
 
