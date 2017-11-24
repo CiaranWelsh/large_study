@@ -138,9 +138,18 @@ app.layout = html.Div([
                     options=[{'label': i, 'value': i} for i in factors],
                     values=['treatment'],
                     labelStyle={'display': 'inline-block'},
-                )],
-                # style={'width': '75%'}
-            )
+                )
+            ]),
+
+            html.Div([
+                html.H2('Choose which factor to colour plot by'),
+                dcc.Checklist(
+                    id='colour_by',
+                    options=[{'label': i, 'value': i} for i in factors],
+                    values=['treatment'],
+                    labelStyle={'display': 'inline-block'},
+                )
+            ])
         ]),
 
         html.Div([
@@ -154,14 +163,37 @@ app.layout = html.Div([
 
     html.Div([
         dcc.Markdown('''## Explained Variance
-        * PC1 (x) = 38.29%
-        * PC2 (y) = 7.94%
-        * PC3 (z) = 6.9%
+        * PC1 (x) = 52.27%
+        * PC2 (y) = 10.87%
+        * PC3 (z) = 7.84%
          '''),
         dcc.Graph(
             id='pca_graph',
             style={'height': 1000}
         ),
+
+        html.Div([
+            html.Br(),
+            html.H2('Colour Saturation'),
+            dcc.Slider(
+                min=0,
+                max=100,
+                step=1,
+                value=50,
+                id='saturation'
+            ),
+
+            html.Br(),
+            html.H2('Colour Brightness'),
+            dcc.Slider(
+                min=0,
+                max=100,
+                step=1,
+                value=50,
+                id='lightness'
+            )]
+        )
+
     ]),
         ]),
 
@@ -186,8 +218,6 @@ exp = Experiment(design_file)
 def update_output(n_clicks, input1):
     return input1
 
-
-
 def str_join(df, sep, *cols):
     from functools import reduce
     return reduce(lambda x, y: x.astype(str).str.cat(y.astype(str), sep=sep),
@@ -209,10 +239,14 @@ def print_full(df):
         # Input('factor', 'value'),
         Input('output-state', 'children'),
         Input('text', 'values'),
+        Input('colour_by', 'values'),
+        Input('saturation', 'value'),
+        Input('lightness', 'value'),
     ]
 )
 def do_pca_groupby(thresh, strategy, norm,
-                   output_state, text):
+                   output_state, text, colour_by,
+                   saturation, lightness):
         """
         Do PCA with the entire dataframe (i.e. one data point per time point
 
@@ -233,12 +267,15 @@ def do_pca_groupby(thresh, strategy, norm,
 
         data = data.rename(columns={
             'cell_line': 'cell_id',
-            # 'time_point': 'time',
+            'time': 'time_point'
         })
         # # print treatment.head()
         design = exp.design
         design = design.reset_index()
-        data = data.merge(design, on=['cell_id', 'replicate', 'treatment'])
+        # print data.keys()
+        # print design.keys()
+        # data.to_csv('data.csv')
+        data = data.merge(design, on=['cell_id', 'replicate', 'treatment', 'time_point'])
 
         data = data.drop([u'Lot.Number', u'WG.Plate', u'factor1', u'factor2',
                           u'Iso.Order', u'Iso.Row', u'Label.Row', u'Label.Order',
@@ -249,9 +286,8 @@ def do_pca_groupby(thresh, strategy, norm,
         data = data.pivot_table(columns=['Sample', 'cell_id', 'replicate',
                                          'treatment', 'time_point', 'Treatment Start Date',
                                          'sub_experiment', 'Filename', 'cell_line'], index='Assay')
-        data = data.drop('time', axis=1)
-        if data.shape != (72, 1296):
-            raise ValueError
+        # if data.shape != (72, 1296):
+        #     raise ValueError('"{}" is not (1296, 72)'.format(data.shape))
 
         data.dropna(axis=0, how='all', thresh=thresh, inplace=True)
         I = Imputer(axis=1, strategy=strategy)
@@ -264,18 +300,19 @@ def do_pca_groupby(thresh, strategy, norm,
         explained_var = pandas.DataFrame(pca.explained_variance_)
         print explained_var
         plt.show()
-
-        df = pandas.DataFrame(pca.transform(data), index=data.index)
+        df = pandas.DataFrame(pca.transform(data))
+        df.index = data.index
         df = df[[0, 1, 2]]
 
         df = df.reset_index()
-
+        df['time_point'].astype(float)
+        # df['time_point'].astype(float)
         df = df.sort_values(by=text)
 
 
         print 'text is' , text
 
-        if text != 'All Data':
+        if text != 'All Data' or text != '':
 
             try:
                 df = df.query(output_state)
@@ -285,17 +322,41 @@ def do_pca_groupby(thresh, strategy, norm,
         print_full(df)
         print df.shape
         print str_join(df, '_', *text)
-        colors = ['hsl({},50%,50%)'.format(h) for h in numpy.linspace(0, 300, df.shape[0])]
-        df.to_csv('df.csv')
 
-        trace = go.Scatter3d(
-            x=df[0],
-            y=df[1],
-            z=df[2],
-            mode='markers+text',
-            text=str_join(df, '_', *text),
-            textposition='bottom',
-        )
+        groupby_obj = df.groupby(by=colour_by)
+        import colorlover as cl
+        print 'len', len(groupby_obj)
+        # try:
+        #     paired = cl.scales['12']['qual']['Paired']
+        #     colours = cl.interp(paired, len(groupby_obj))
+        # except ZeroDivisionError:
+        colours = ['hsl({},{}%,{}%)'.format(h, saturation, lightness) for h in numpy.linspace(0, 300, len(groupby_obj))]
+
+        labels = []
+        for label, df in groupby_obj:
+            labels.append(label)
+
+        colours = dict(zip(labels, colours))
+
+        traces = []
+        for label, d in groupby_obj:
+            if isinstance(label, tuple):
+                name = reduce(lambda x, y: '{}_{}'.format(x, y), label)
+            else:
+                name = label
+            trace = go.Scatter3d(
+                x=d[0],
+                y=d[1],
+                z=d[2],
+                mode='markers+text',
+                text=str_join(d, '_', *text),
+                textposition='bottom',
+                marker=dict(
+                    color=colours[label]
+                ),
+                name=name
+            )
+            traces.append(trace)
         layout = go.Layout(
             title='PCA',
             titlefont=dict(
@@ -309,12 +370,12 @@ def do_pca_groupby(thresh, strategy, norm,
             hoverlabel=dict(namelength=-1),
 
             xaxis=dict(
-                title='PC1 Explained Variance {}%'.format(explained_var.iloc[0]),
+                title='PC1 Explained Variance {}%'.format(float(explained_var.iloc[0])),
                 titlefont=dict(size=20)
                 ),
 
             yaxis=dict(
-                title='PC2 Explained Variance {}%'.format(explained_var.iloc[1]),
+                title='PC2 Explained Variance {}%'.format(float(explained_var.iloc[1])),
                 titlefont=dict(size=20)
             ),
 
@@ -329,7 +390,7 @@ def do_pca_groupby(thresh, strategy, norm,
         # import plotly
         # plotly.offline.plot(go.Figure(data=[trace], layout=layout))
         return {
-            'data': [trace],
+            'data': traces,
             'layout': layout,
         }
 
