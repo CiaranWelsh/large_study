@@ -6,7 +6,7 @@ from sklearn.decomposition import PCA
 from sklearn.preprocessing import Imputer
 import logging
 import dash
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
 import dash_core_components as dcc
 import dash_html_components as html
 import plotly.graph_objs as go
@@ -166,7 +166,7 @@ app.layout = html.Div([
                 id='factor',
             ),
         ]),
-    ]),
+
 
     html.Div([
         dcc.Graph(
@@ -174,6 +174,7 @@ app.layout = html.Div([
             style={'height': 1000}
         ),
     ]),
+        ]),
 
     html.Label('Note: click on a legend label to toggle it on or off. Double click a legend label to '
                'isolate that trace'),
@@ -197,7 +198,23 @@ app.layout = html.Div([
             step=1,
             value=50,
             id='lightness'
-        )]
+        )],
+
+        dcc.RadioItems(
+            id='query-radio',
+            options=[
+                {'label': "treatment == 'TGFb'", 'value': "treatment == 'TGFb'"}
+            ]
+        ),
+
+        # dcc.Input(id='input-box'),
+        # dcc.Graph(id='pca'),
+        #
+        # html.Div(id='query', style={'display': 'none'}),
+        # #
+        # dcc.Input(id='query-box'),
+
+        # html.Button(id='submit-button', n_clicks=0, children='submit'),
     )],
     style={
         'textAlign': 'center',
@@ -208,17 +225,30 @@ app.layout = html.Div([
 )
 
 
-@app.callback(
-    Output('factor', 'multi'),
-    [Input('multi_dropdown_bool', 'value')]
-)
-def set_multi_dropdown(boolean):
-    return boolean
+# @app.callback(
+#     Output('factor', 'multi'),
+#     [Input('multi_dropdown_bool', 'value')]
+# )
+# def set_multi_dropdown(boolean):
+#     return boolean
 
+"""
+Build query interface. 
 
+List of common queries and an input box to create your own
+"""
 
 exp = Experiment(design_file)
 
+
+# def do_pca_groupby(thresh, strategy, norm, factor=None,
+#                    saturation='50%', lightness='50%'):
+# @app.callback(
+#     Output('query', 'children'),
+#     [Input('query-box', 'value')]
+# )
+# def create_query(query):
+#     return "{}".format(query)
 
 @app.callback(
     Output('pca_graph', 'figure'),
@@ -238,102 +268,137 @@ def do_pca_groupby(thresh, strategy, norm, factor,
 
     :return:
     """
-    seaborn.set_context(context='talk', font_scale=1.5)
-    # print exp.treatment_data.head()
-    # print exp.design.head()
-    treatment = exp.treatment_data[norm]
-    treatment = treatment.reset_index()
-    treatment = treatment.rename(columns={
-        'cell_line': 'cell_id'
+    treatment_data = exp.treatment_data[norm].stack()
+    baseline_data = exp.baseline_data[norm].stack()
+    data = pandas.concat([treatment_data, baseline_data])
+    data = pandas.DataFrame(data)
+    data.columns = [norm]
+    '''
+    How many measurements shold I have?
+
+    1296 samples, each with 72 readings --> 93312
+    Many have been removed automatically due to poor quality
+    '''
+    data = data.reset_index()
+
+    data = data.rename(columns={
+        'cell_line': 'cell_id',
+        # 'time_point': 'time',
     })
-    # print treatment.head()
+    # # print treatment.head()
     design = exp.design
     design = design.reset_index()
-    # print design.head()
-    data = treatment.merge(design, on=['cell_id', 'replicate', 'treatment'])
+    print design.keys()    # print design.head()
+    data = data.merge(design, on=['cell_id', 'replicate', 'treatment'])
+
     data = data.drop([u'Lot.Number', u'WG.Plate', u'factor1', u'factor2',
                       u'Iso.Order', u'Iso.Row', u'Label.Row', u'Label.Order',
                       u'Label.Col', u'Iso.Col', u'Batch', u'RNAYield(ug)'], axis=1)
+    #'cell_id', 'treatment', 'replicate', 'sub_experiment',
+            # 'cell_line', 'Treatment Start Date', 'Filename', 'Sample', 'Assay',
+            # 'time_point'
+    print data.keys()
+    data = data.pivot_table(columns=['Sample', 'cell_id', 'replicate',
+                                     'treatment', 'time_point', 'Treatment Start Date',
+                                     'sub_experiment', 'Filename', 'cell_line'], index='Assay')
+    data = data.drop('time', axis=1)
+    if data.shape != (72, 1296):
+        raise ValueError
 
-    data = data.set_index(factors)
+    # pca = PCA(2)
+    # pca.fit(data)
+    # print pca.explained_variance_
+    # data = data.set_index(factors)
     data.dropna(axis=0, how='all', thresh=thresh, inplace=True)
     I = Imputer(axis=1, strategy=strategy)
     data = pandas.DataFrame(I.fit_transform(data), index=data.index, columns=data.columns)
+    data = data.transpose()
+    pca = PCA(10)
+    pca.fit(data)
 
-    groupby_obj = data.groupby(level=factor)
+    # pandas.DataFrame(pca.explained_variance_).plot()
+    # plt.show()
 
-    colors = ['hsl({},{}%,{}%)'.format(h, saturation, lightness) for h in numpy.linspace(0, 300, len(groupby_obj))]
-    labels = []
-    for label, df in groupby_obj:
-        labels.append(label)
+    df = pandas.DataFrame(pca.transform(data), index=data.index)
+    df = df[[0, 1]]
 
-    colours = dict(zip(labels, colors))
-
-    traces = []
-    for label, df in groupby_obj:
-        if isinstance(label, tuple):
-            name = reduce(lambda x, y: '{}_{}'.format(x, y), label)
-        else:
-            name = label
-        df = df.transpose()
-        pca = PCA(2)
-        pca.fit(df)
-        pc = pandas.DataFrame(pca.transform(df), index=df.index)
-
-        trace = go.Scatter(
-            x=pc[0],
-            y=pc[1],
-            mode='markers+text+lines',
-            name=name,
-            marker=dict(
-                color=colours[label],
-                size=15,
-            ),
-            text=['{}h'.format(i) for i in pc.index],
-            textposition='bottom',
-        )
-        traces.append(trace)
-
-    if isinstance(factor, (str, unicode)):
-        factor = [factor]
-
-    layout = go.Layout(
-        title='PCA Data Split by "{}"'.format(reduce(lambda x, y: "{}, {}".format(x, y), factor)),
-        titlefont=dict(
-            size=35
-        ),
-        hovermode='closest',
-        legend=dict(
-            x=-0.15,
-            y=1,
-            bgcolor='#E2E2E2'),
-        hoverlabel=dict(namelength=-1),
-        xaxis=dict(
-            title='PC1',
-            titlefont=dict(
-                size=20
-            )
-
-            ),
-        yaxis=dict(
-            title='PC2',
-            titlefont=dict(
-                size=20
-            )
-
-        )
-    )
     return {
-        'data': traces,
-        'layout': layout
+        'data': go.Scatter(x=range(10), y=range(10)),
+        'layout': go.Layout(title='t')
     }
+    #.query("treatment == 'TGFb'")
+    # colors = ['hsl({},{}%,{}%)'.format(h, saturation, lightness) for h in numpy.linspace(0, 300, len(groupby_obj))]
+    # labels = []
+    # for label, df in groupby_obj:
+    #     labels.append(label)
+    #
+    # colours = dict(zip(labels, colors))
+    #
+    # traces = []
+    # for label, df in groupby_obj:
+    #     if isinstance(label, tuple):
+    #         name = reduce(lambda x, y: '{}_{}'.format(x, y), label)
+    #     else:
+    #         name = label
+    #     df = df.transpose()
+    #     pca = PCA(2)
+    #     pca.fit(df)
+    #     pc = pandas.DataFrame(pca.transform(df), index=df.index)
+    #
+    #     trace = go.Scatter(
+    #         x=pc[0],
+    #         y=pc[1],
+    #         mode='markers+text+lines',
+    #         name=name,
+    #         marker=dict(
+    #             color=colours[label],
+    #             size=15,
+    #         ),
+    #         text=['{}h'.format(i) for i in pc.index],
+    #         textposition='bottom',
+    #     )
+    #     traces.append(trace)
+    #
+    # if isinstance(factor, (str, unicode)):
+    #     factor = [factor]
+    #
+    # layout = go.Layout(
+    #     title='PCA Data Split by "{}"'.format(reduce(lambda x, y: "{}, {}".format(x, y), factor)),
+    #     titlefont=dict(
+    #         size=35
+    #     ),
+    #     hovermode='closest',
+    #     legend=dict(
+    #         x=-0.15,
+    #         y=1,
+    #         bgcolor='#E2E2E2'),
+    #     hoverlabel=dict(namelength=-1),
+    #     xaxis=dict(
+    #         title='PC1',
+    #         titlefont=dict(
+    #             size=20
+    #         )
+    #
+    #         ),
+    #     yaxis=dict(
+    #         title='PC2',
+    #         titlefont=dict(
+    #             size=20
+    #         )
+    #
+    #     )
+    # )
+    # return {
+    #     'data': traces,
+    #     'layout': layout
+    # }
 
 
 
-
+# do_pca_groupby(5, 'median', 'Ct', )
 
 if __name__ == '__main__':
-    app.run_server(debug=True, host='0.0.0.0', port=12345)
+    app.run_server(debug=True)
 
 
 
