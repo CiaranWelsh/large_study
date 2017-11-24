@@ -23,8 +23,6 @@ server = Flask(__name__)
 app = dash.Dash(server=server)
 
 app.css.append_css({"external_url": "https://codepen.io/chriddyp/pen/bWLwgP.css"})
-#
-# from app import app
 
 
 design_file = os.path.join(
@@ -40,7 +38,6 @@ if not os.path.isfile(design_file):
 if not os.path.isfile(design_file):
     raise ValueError('"{}" not valid file'.format(design_file))
 
-# design_file = os.path
 exp = Experiment(design_file)
 sample_keys = exp.subexperiments[1].plates[1].samples.keys()
 genes = exp.subexperiments[1].plates[1].samples[sample_keys[0]].genes
@@ -237,8 +234,6 @@ Build query interface.
 
 List of common queries and an input box to create your own
 """
-
-exp = Experiment(design_file)
 
 
 # def do_pca_groupby(thresh, strategy, norm, factor=None,
