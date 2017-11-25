@@ -69,9 +69,9 @@ GRAPH_WIDTH = 500
 GRAPH_HEIGHT = 400
 
 markdown1 = """
-TGFb is involved in the maintenance of dermal extracellular matrix (ECM). 
+TGFb is involved in the maintenance of dermal extracellular matrix (ECM).
 Changes associated with the dermal ECM with age contribute towards
-the ageing phenotype in skin tissue. This experiment was designed 
+the ageing phenotype in skin tissue. This experiment was designed
 to investigate how fibroblast respond to TGFb over time and how the measured
 components differ between three classes of cell:
 
@@ -82,16 +82,16 @@ components differ between three classes of cell:
 """
 
 markdown2 = """
-Fibroblasts were treated with 5ng/mL TGFb or PBS (control) for 0.5, 1, 2, 3, 
-4, 8, 12, 24, 48, 72 or 96h (n=6). Both control and TGFb time courses were 
-serum starved for 24h prior to experiment to remove residual TGFb. 
-This is in contrast to the Baseline groups which were collected at 0h and 
-96h time points and were not starved or treated in any way. 
+Fibroblasts were treated with 5ng/mL TGFb or PBS (control) for 0.5, 1, 2, 3,
+4, 8, 12, 24, 48, 72 or 96h (n=6). Both control and TGFb time courses were
+serum starved for 24h prior to experiment to remove residual TGFb.
+This is in contrast to the Baseline groups which were collected at 0h and
+96h time points and were not starved or treated in any way.
 """
 
 markdown3 = """
-The entire experiment was conducted in triplicate (9 cell lines total). The 
-three sub-experiments each consist of a HDFn, Sen and Adult cell line. 
+The entire experiment was conducted in triplicate (9 cell lines total). The
+three sub-experiments each consist of a HDFn, Sen and Adult cell line.
 
 1) A, D, G
 2) B, E, H
@@ -100,22 +100,38 @@ three sub-experiments each consist of a HDFn, Sen and Adult cell line.
 """
 
 pca_markdown = """
-PCA is a dimensionality reduction technique. 
+PCA is a dimensionality reduction technique.
 The idea is to reduce high dimensional data sets to 2 or 3
-dimensions such that they can be visualized on 2 or 3 
-dimensional graphs. The present data set has the following 
+dimensions such that they can be visualized on 2 or 3
+dimensional graphs. The present data set has the following
 variables:
 
-Here we lay the data out with samples along columns and genes down 
-the rows. The PCA is calculated and the first three PCs are 
-displayed in 3D. 
+Here we lay the data out with samples along columns and genes down
+the rows. The PCA is calculated and the first three PCs are
+displayed in 3D.
 
-PCA cannot handle missing values. Our strategy for handling missing data 
+PCA cannot handle missing values. Our strategy for handling missing data
 is to set a threshold for the maximum number of missing values per time course.
-Time courses with more than this number of missing values are removed 
-while those with an 'acceptable' number of missing values are 
+Time courses with more than this number of missing values are removed
+while those with an 'acceptable' number of missing values are
 imputed using either the mean or median of the time course.
 """
+
+explained_variance_markdown = """## Explained Variance
+* PC1 (x) = 52.27%
+* PC2 (y) = 10.87%
+* PC3 (z) = 7.84%
+"""
+
+query_markdown = """Construct a [query](https://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.query.html) '
+                    for a pandas data frame to subset the data before plotting.
+                    For example, typing 'treatment == "TGFb" and time_point > 11' (without the outer apostrophies).
+                    will plot samples where the treatment was TGFb and time greater than 11.
+                    This is useful to get 'cleaner' plots that are not distorted by too many data points.
+                    The data frame that gets queried here has the following columns: {}, all of which
+                    can be used along with 'and', 'or' and 'not' statements
+                    to construct a query""".format(factors)
+
 app.layout = html.Div(
     style={'textAlign': 'center'},
     children=[
@@ -278,7 +294,7 @@ app.layout = html.Div(
 
             dcc.Markdown(pca_markdown),
 
-            html.Label('Note: switch between raw data (Ct) and normalized to reference '
+            html.H3('Note: switch between raw data (Ct) and normalized to reference '
                        'genes using the switch above')
 
         ],
@@ -288,7 +304,7 @@ app.layout = html.Div(
 
             html.Div([
                 html.Div([
-                    html.H2('Threshold Slider'),
+                    html.H2('Number of NaN\'s before a Profile is Discarded'),
                     dcc.Slider(
                         min=1,
                         max=11,
@@ -317,22 +333,8 @@ app.layout = html.Div(
                         id='imputation_strategy',
                         labelStyle={'display': 'inline-block'},
                     ),
-                    #
-                    # html.Br(),
-                    #
-                    # html.H2('Raw Ct Values or After Normalization to geomean(PPIA, B2M)'),
-                    #
-                    # dcc.RadioItems(
-                    #     options=[
-                    #         {'label': 'Raw Ct Values', 'value': 'Ct'},
-                    #         {'label': 'Normalized delta Ct', 'value': 'Norm2ref'}
-                    #     ],
-                    #     value='Ct',
-                    #     id='norm',
-                    #     labelStyle={'display': 'inline-block'},
-                    # ),
 
-                    dcc.Markdown('Customize the colours and labels of the PCA'),
+                    html.H2('Customize the colours and labels of the PCA'),
 
                     html.Div([
                         html.H2('Choose data point labels'),
@@ -357,25 +359,17 @@ app.layout = html.Div(
 
                 html.Div([
                     html.H2('Query the Data'),
-                    dcc.Markdown('Construct a [query](https://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.query.html) '
-                                  'for a pandas data frame to subset the data before plotting. '
-                                 'For example, typing \'treatment == "TGFb" and time_point > 11\' will'
-                                 'subset the PCA before plotting the data points. This is useful to '
-                                 'get \'cleaner\' plots that are not distorted by too many data points. The data'
-                                 'frame that gets queried here has the following columns: {}, all of which '
-                                 'can be used along with \'and\', \'or\' and \'not\' statements '
-                                 'to construct a query'.format(factors)),
+                    dcc.Markdown(query_markdown),
                     dcc.Input(id='input-1-state', type="text", value='All Data'),
                     html.Button(id='submit-button', n_clicks=0, children='Submit'),
                     html.Div(id='output-state')
-                ]),
+                ],
+                style={'display': 'inline-block',
+                       'width': '60%',
+                       'margin': 'auto'}),
 
             html.Div([
-                dcc.Markdown('''## Explained Variance
-                                    * PC1 (x) = 52.27%
-                                    * PC2 (y) = 10.87%
-                                    * PC3 (z) = 7.84%
-                                     '''),
+                dcc.Markdown(explained_variance_markdown),
                 dcc.Graph(
                     id='pca_graph',
                     style={'height': 1000}
@@ -400,7 +394,9 @@ app.layout = html.Div(
                         step=1,
                         value=50,
                         id='lightness'
-                    )]
+                    )],
+                    style={'width': '60%',
+                           'margin': 'auto'}
                 )
 
             ]),
