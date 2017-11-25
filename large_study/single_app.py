@@ -556,13 +556,6 @@ def str_join(df, sep, *cols):
                   [df[col] for col in cols])
 
 
-def print_full(df):
-    default = pandas.get_option('display.max_rows')
-    pandas.set_option('display.max_rows', df.shape[0])
-    print df
-    pandas.set_option('display.max_rows', default)
-
-
 @app.callback(
     Output('pca_graph', 'figure'),
     [
