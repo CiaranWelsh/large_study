@@ -631,7 +631,6 @@ def do_pca_groupby(thresh, strategy, norm,
     pca.fit(data)
 
     explained_var = pandas.DataFrame(pca.explained_variance_)
-    print explained_var
     plt.show()
     df = pandas.DataFrame(pca.transform(data))
     df.index = data.index
@@ -642,7 +641,6 @@ def do_pca_groupby(thresh, strategy, norm,
     # df['time_point'].astype(float)
     df = df.sort_values(by=text)
 
-    print 'text is', text
 
     if text != 'All Data' or text != '':
 
@@ -651,17 +649,8 @@ def do_pca_groupby(thresh, strategy, norm,
         except SyntaxError:
             print 'Query "{}" caused Syntax error'.format(output_state)
 
-    print_full(df)
-    print df.shape
-    print str_join(df, '_', *text)
-
     groupby_obj = df.groupby(by=colour_by)
     import colorlover as cl
-    print 'len', len(groupby_obj)
-    # try:
-    #     paired = cl.scales['12']['qual']['Paired']
-    #     colours = cl.interp(paired, len(groupby_obj))
-    # except ZeroDivisionError:
     colours = ['hsl({},{}%,{}%)'.format(h, saturation, lightness) for h in numpy.linspace(0, 300, len(groupby_obj))]
 
     labels = []
