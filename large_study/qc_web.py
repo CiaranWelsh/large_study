@@ -286,6 +286,7 @@ def do_pca_groupby(thresh, strategy, norm,
         data = data.pivot_table(columns=['Sample', 'cell_id', 'replicate',
                                          'treatment', 'time_point', 'Treatment Start Date',
                                          'sub_experiment', 'Filename', 'cell_line'], index='Assay')
+
         # if data.shape != (72, 1296):
         #     raise ValueError('"{}" is not (1296, 72)'.format(data.shape))
 

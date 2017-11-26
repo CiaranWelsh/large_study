@@ -334,6 +334,18 @@ app.layout = html.Div(
                         labelStyle={'display': 'inline-block'},
                     ),
 
+                    html.H2('Orientation'),
+                    html.Label('Reduce dimensions in the Samples or Genes direction'),
+                    dcc.RadioItems(
+                        options=[
+                            {'label': 'Samples', 'value': 'samples'},
+                            {'label': 'Genes', 'value': 'genes'},
+                        ],
+                        value='samples',
+                        id='by',
+                        labelStyle={'display': 'inline-block'},
+                    ),
+
                     html.H2('Customize the colours and labels of the PCA'),
 
                     html.Div([
@@ -564,11 +576,12 @@ def str_join(df, sep, *cols):
         Input('colour_by', 'values'),
         Input('saturation', 'value'),
         Input('lightness', 'value'),
+        Input('by', 'value'),
     ]
 )
 def do_pca_groupby(thresh, strategy, norm,
                    output_state, text, colour_by,
-                   saturation, lightness):
+                   saturation, lightness, by):
     """
     Do PCA with the entire dataframe (i.e. one data point per time point
 
@@ -614,90 +627,139 @@ def do_pca_groupby(thresh, strategy, norm,
     data.dropna(axis=0, how='all', thresh=thresh, inplace=True)
     I = Imputer(axis=1, strategy=strategy)
     data = pandas.DataFrame(I.fit_transform(data), index=data.index, columns=data.columns)
-    data = data.transpose()
-    pca = PCA(10)
+    if by == 'samples':
+        data = data.transpose()
 
-    pca.fit(data)
+        pca = PCA(10)
 
-    explained_var = pandas.DataFrame(pca.explained_variance_)
-    plt.show()
-    df = pandas.DataFrame(pca.transform(data))
-    df.index = data.index
-    df = df[[0, 1, 2]]
+        pca.fit(data)
 
-    df = df.reset_index()
-    df['time_point'].astype(float)
-    # df['time_point'].astype(float)
-    df = df.sort_values(by=text)
+        explained_var = pandas.DataFrame(pca.explained_variance_)
+        plt.show()
+        df = pandas.DataFrame(pca.transform(data))
+        print 'df', df
+        df.index = data.index
+        df = df[[0, 1, 2]]
+        print 'df with index', df
+
+        df = df.reset_index()
+        df['time_point'].astype(float)
+        # df['time_point'].astype(float)
+        df = df.sort_values(by=text)
 
 
-    if text != 'All Data' or text != '':
+        if text != 'All Data' or text != '':
 
-        try:
-            df = df.query(output_state)
-        except SyntaxError:
-            print 'Query "{}" caused Syntax error'.format(output_state)
+            try:
+                df = df.query(output_state)
+            except SyntaxError:
+                print 'Query "{}" caused Syntax error'.format(output_state)
 
-    groupby_obj = df.groupby(by=colour_by)
-    import colorlover as cl
-    colours = ['hsl({},{}%,{}%)'.format(h, saturation, lightness) for h in numpy.linspace(0, 300, len(groupby_obj))]
+        groupby_obj = df.groupby(by=colour_by)
+        import colorlover as cl
+        colours = ['hsl({},{}%,{}%)'.format(h, saturation, lightness) for h in numpy.linspace(0, 300, len(groupby_obj))]
 
-    labels = []
-    for label, df in groupby_obj:
-        labels.append(label)
+        labels = []
+        for label, df in groupby_obj:
+            labels.append(label)
 
-    colours = dict(zip(labels, colours))
+        colours = dict(zip(labels, colours))
 
-    traces = []
-    for label, d in groupby_obj:
-        if isinstance(label, tuple):
-            name = reduce(lambda x, y: '{}_{}'.format(x, y), label)
-        else:
-            name = label
-        trace = go.Scatter3d(
-            x=d[0],
-            y=d[1],
-            z=d[2],
-            mode='markers+text',
-            text=str_join(d, '_', *text),
-            textposition='bottom',
-            marker=dict(
-                color=colours[label]
+        traces = []
+        for label, d in groupby_obj:
+            if isinstance(label, tuple):
+                name = reduce(lambda x, y: '{}_{}'.format(x, y), label)
+            else:
+                name = label
+            trace = go.Scatter3d(
+                x=d[0],
+                y=d[1],
+                z=d[2],
+                mode='markers+text',
+                text=str_join(d, '_', *text),
+                textposition='bottom',
+                marker=dict(
+                    color=colours[label]
+                ),
+                name=name
+            )
+            traces.append(trace)
+        layout = go.Layout(
+            title='PCA',
+            titlefont=dict(
+                size=35
             ),
-            name=name
+            hovermode='closest',
+            legend=dict(
+                x=-0.15,
+                y=1,
+                bgcolor='#E2E2E2'),
+            hoverlabel=dict(namelength=-1),
+
+            xaxis=dict(
+                title='PC1 Explained Variance {}%'.format(float(explained_var.iloc[0])),
+                titlefont=dict(size=20)
+            ),
+
+            yaxis=dict(
+                title='PC2 Explained Variance {}%'.format(float(explained_var.iloc[1])),
+                titlefont=dict(size=20)
+            )
+        )
+
+    elif by == 'genes':
+
+        pca = PCA(10)
+
+        pca.fit(data)
+
+        explained_var = pandas.DataFrame(pca.explained_variance_)
+        print explained_var
+
+        df = pandas.DataFrame(pca.transform(data))
+        print 'df', df
+        df.index = data.index
+        df = df[[0, 1, 2]]
+        print 'df with index', df
+
+
+        colours = ['hsl({},{}%,{}%)'.format(h, saturation, lightness) for h in numpy.linspace(0, 300, df.shape[0])]
+
+
+        traces = []
+        trace = go.Scatter3d(
+            x=df[0],
+            y=df[1],
+            z=df[2],
+            mode='markers+text',
+            text=df.index,
+            textposition='bottom',
+            marker=dict(color=colours),
         )
         traces.append(trace)
-    layout = go.Layout(
-        title='PCA',
-        titlefont=dict(
-            size=35
-        ),
-        hovermode='closest',
-        legend=dict(
-            x=-0.15,
-            y=1,
-            bgcolor='#E2E2E2'),
-        hoverlabel=dict(namelength=-1),
+        layout = go.Layout(
+            title='PCA',
+            titlefont=dict(
+                size=35
+            ),
+            hovermode='closest',
+            legend=dict(
+                x=-0.15,
+                y=1,
+                bgcolor='#E2E2E2'),
+            hoverlabel=dict(namelength=-1),
 
-        xaxis=dict(
-            title='PC1 Explained Variance {}%'.format(float(explained_var.iloc[0])),
-            titlefont=dict(size=20)
-        ),
+            xaxis=dict(
+                title='PC1 Explained Variance {}%'.format(float(explained_var.iloc[0])),
+                titlefont=dict(size=20)
+            ),
 
-        yaxis=dict(
-            title='PC2 Explained Variance {}%'.format(float(explained_var.iloc[1])),
-            titlefont=dict(size=20)
-        ),
+            yaxis=dict(
+                title='PC2 Explained Variance {}%'.format(float(explained_var.iloc[1])),
+                titlefont=dict(size=20)
+            )
+        )
 
-        # zaxis=dict(
-        #     title='PC3 Explained Variance {}%'.format(explained_var.iloc[2]),
-        #     titlefont=dict(size=20)
-        # )
-    )
-
-    # print df
-    # import plotly
-    # plotly.offline.plot(go.Figure(data=[trace], layout=layout))
     return {
         'data': traces,
         'layout': layout,
