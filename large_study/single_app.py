@@ -624,6 +624,8 @@ def do_pca_groupby(thresh, strategy, norm,
     # if data.shape != (72, 1296):
     #     raise ValueError('"{}" is not (1296, 72)'.format(data.shape))
 
+    #data.to_csv('Data.csv')
+
     data.dropna(axis=0, how='all', thresh=thresh, inplace=True)
     I = Imputer(axis=1, strategy=strategy)
     data = pandas.DataFrame(I.fit_transform(data), index=data.index, columns=data.columns)
