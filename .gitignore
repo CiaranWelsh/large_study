@@ -100,10 +100,18 @@ ENV/
 # mypy
 .mypy_cache/
 
-wafergen/.idea/*
+wafergen/.idea/*rm lar	
 *.~lock*
 .idea/*
 large_study/*.pyc
-GSS2375_NewDur_Grant/Graphs/*
-GSS2375_NewDur_Grant/IndividualGraphs/*
-GSS2375_NewDur_Grant/Graphs/QC*
+GSS2375_NewDur_Grant/Graphs
+GSS2375_NewDur_Grant/IndividualGraphs
+GSS2375_NewDur_Grant/Graphs
+GSS2375_NewDur_Grant
+Graphs/
+data_dire
+RecentDataGraphs
+Growth
+ECM
+
+

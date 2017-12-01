@@ -829,9 +829,11 @@ class Query(Experiment):
 
 
 if __name__ == '__main__':
+    dire = r'/home/b3053674/Documents/LargeStudy/GSS2375_WB_NewDur_Grant'
+    design_file = os.path.join(dire, 'new_design.csv')
 
-
-
-
+    E = Experiment(design_file)
+    df = pandas.concat([E.treatment_data.stack(), E.baseline_data.stack()])
+    # df.to_csv('DataFromWaferGen2.csv')
 
 
