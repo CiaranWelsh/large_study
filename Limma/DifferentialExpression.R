@@ -2,9 +2,11 @@ library(limma)
 library(reshape2)
 library(tidyr)
 library(gtools)
+library(ggplot2)
 library(utils)
 ## working directory for analysis 
 dire = '/home/b3053674/Documents/LargeStudy/Limma'
+baseline_analysis_dir = r'/home/b3053674/Documents/LargeStudy/Limma/Contrasts/BaselineAnalysis'
 setwd(dire)
 
 ## file containing delta Ct values
@@ -151,9 +153,12 @@ do_contrast = function(contrast, fit, design){
   return (delete.na(results))
 }
 
+## Baseline Analysis
+setwd(baseline_analysis_dir)
 ## do all combinations of contrast for baseline
 bc = do_contrast(baseline_contrasts, fit, design_matrix)
 
+## summarize  
 sample_sums = sort(colSums(bc))
 gene_sums = sort(rowSums(bc))
 
@@ -167,10 +172,56 @@ write.csv(bc, 'baseline_contrasts.csv')
 write.csv(sort(sample_sums), 'sum_of_sample_contrasts.csv')
 write.csv(sort(gene_sums), 'sum_of_gene_contrasts.csv')
 
-vennDiagram(baseline_contrasts[, 1:3])
 
-barplot(sample_sums)
+gene_sums
+gene_sums = data.frame(gene_sums)
+sample_sums = data.frame(sample_sums)
 
+
+## plot summary of numbers of contrasts each gene is differentially regualted in 
+barplot(sort(abs(gene_sums)/153*100, decreasing=TRUE), names.arg=rownames(gene_sums), las=2, col='black',
+        main='Barchart summarizing number of baseline contrasts each gene is \ndifferentially regulated in',
+        ylab='Percentage of Contrasts (n=153)',
+        ylim=c(0, 100),
+        cex.axis=1.4,
+        )       
+
+
+sample_sums
+
+## plot summary of numbers of contrasts each gene is differentially regualted in 
+
+barplot(sort(abs(sample_sums$sample_sums), decreasing=TRUE), col='black',
+        main='Barchart summarizing number genes differentially regulated \nin each contrast',
+        ylab='Percentage of Genes in Contrast (n_genes=66)',
+        cex.axis=1.4,
+)       
+
+
+bc_sort = bc[,rownames(sample_sums)]
+
+dim(bc_sort)
+
+bc_sort
+vennDiagram(bc)
+bc_sort[,1:4]
+vennDiagram(bc_sort[,1:3], names=c('C_0 - H_96', 'D_0 - H_96', 'B_0 - H_96', 'D_0 - I_96'))
+
+
+write.csv(bc_sort, file='baseline_contrasts_sorted.csv')
+
+bc_sort[,1:3]#][!bc_sort[,1:3] == 0]
+
+
+get_common_genes = function(...){
+  args = list(...)
+  #Reduce(function(x, y) paste(x, '&' y), args)
+  print (args)
+}
+
+common = bc_sort[, 'Baseline_H_96 - Baseline_I_96'] & bc_sort[, 'Baseline_H_96 - Baseline_I_0']
+
+topTable(fit2[common,])
 
 
 

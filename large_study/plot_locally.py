@@ -488,6 +488,74 @@ def plot_individuals(exp, normed=True):
 
 
 
+def plot_baseline():
+    from matplotlib.backends.backend_pdf import PdfPages
+    seaborn.set(context='talk')
+    seaborn.set_style('white')
+    seaborn.set_palette(seaborn.color_palette('hls', 2))
+    dire = r'/home/b3053674/Documents/LargeStudy/GSS2375_WB_NewDur_Grant'
+    design_file = os.path.join(dire, 'new_design.csv')
+
+    baseline_dir = r'/home/b3053674/Documents/LargeStudy/Limma/Contrasts/BaselineAnalysis'
+
+    E = Experiment(design_file)
+    baseline = E.treatment_data.query('treatment == "Baseline"')['Norm2ref']
+    baseline = E.baseline_data['Norm2ref']
+    baseline.index = baseline.index.droplevel(1)
+    baseline = pandas.DataFrame(baseline.stack())
+
+    baseline.rename(columns={0: 'DeltaCt'}, inplace=True)
+    baseline = baseline.reset_index()
+
+    with PdfPages(os.path.join(baseline_dir, 'BaselineGraphs.pdf')) as pdf:
+        for g in E.genes:
+            print g
+            plot_data = baseline.query('Assay == "{}"'.format(g))
+            fig = plt.figure()
+            ax = seaborn.barplot(x='cell_line', y='DeltaCt', data=plot_data, hue='time',)
+            plt.title('Baseline: {}'.format(g))
+            plt.ylabel('DeltaCt (mean n=6)')
+            plt.xlabel('')
+            trans = ax.get_xaxis_transform()
+            ax.annotate('Neonatal', xy=(0.4, -0.1), xycoords=trans)
+
+            ax.annotate('', xy=(0.05, -0.06), xycoords='axes fraction', xytext=(0.31, -0.06),
+                        arrowprops=dict(arrowstyle='-',
+                                        color='black',
+                                        linewidth=3)
+                        )
+
+            ax.annotate('Senescent', xy=(3.5, -0.1), xycoords=trans)
+            ax.annotate('', xy=(0.35, -0.06), xycoords='axes fraction', xytext=(0.65, -0.06),
+                        arrowprops=dict(arrowstyle='-',
+                                        color='black',
+                                        linewidth=3)
+                        )
+
+            ax.annotate('Adult', xy=(6.5, -0.1), xycoords=trans)
+            ax.annotate('', xy=(0.68, -0.06), xycoords='axes fraction', xytext=(0.98, -0.06),
+                        arrowprops=dict(arrowstyle='-',
+                                        color='black',
+                                        linewidth=3)
+                        )
+
+            seaborn.despine(fig=fig, top=False, right=False)
+            plt.legend().set_title('Time(h)')
+
+            pdf.savefig(bbox_inches='tight', dpi=400)
+
+
+
+    # sub1_control = control.query('cell_line in ["A", "D", "G"]')
+    # sub1_tgf = tgfb.query('cell_line in ["A", "D", "G"]')
+    #
+    # sub2_control = control.query('cell_line in ["B", "E", "H"]')
+    # sub2_tgf = tgfb.query('cell_line in ["B", "E", "H"]')
+    #
+    # sub3_control = control.query('cell_line in ["C", "F", "I"]')
+    # sub3_tgf = tgfb.query('cell_line in ["C", "F", "I"]')
+
+
 
 
 
@@ -501,7 +569,9 @@ def plot_individuals(exp, normed=True):
 
 
 if __name__ == '__main__':
-    plot_individuals(exp)
+    # plot_individuals(exp)
+
+    plot_baseline()
 
 
 
