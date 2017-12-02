@@ -223,6 +223,73 @@ common = bc_sort[, 'Baseline_H_96 - Baseline_I_96'] & bc_sort[, 'Baseline_H_96 -
 
 topTable(fit2[common,])
 
+##############################################################
+##                                                          ##
+##            Questions                                     ##
+##############################################################
+##
+## 1) Which genes are differentially regulated between neonatal, adult and senescent cells?  
+##     
+## 2) Are any of these genes per cell line DE as a result of time only?
+##
+## 3) Are any of these genes per cell line DE as a result of media change?
+##
+## 4) Are any of these genes per cell line DE as a result of adding TGFb?
+##
+## after Q3 and Q4 are answered then dig into the time element i.e. at which times are the genes DE? 
+##
+##
+## 5) are there are genes in the second WG experiment that were also DE in the first?
+##
+## 6) Which genes are differently regulated
+##
+##
+##
+
+
+## 1) Which genes are differentially regulated between neonatal, adult and senescent cells?  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
