@@ -834,6 +834,6 @@ if __name__ == '__main__':
 
     E = Experiment(design_file)
     df = pandas.concat([E.treatment_data.stack(), E.baseline_data.stack()])
-    # df.to_csv('DataFromWaferGen2.csv')
+    df.to_csv(os.path.join(dire, 'DataFromWaferGen2.csv'))
 
 

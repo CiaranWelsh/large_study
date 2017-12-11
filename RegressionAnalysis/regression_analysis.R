@@ -173,7 +173,7 @@ corr_plot = function(data, x, y, eq_loc=c(5, 20)){
 # [64] "TGFBR2"   "THBS1"    "THBS2"    "TIMP1"    "TIMP3"    "TP53BP1"  "VCAN"     "VEGFA"    "VIM" 
 
 
-corr_plot(data, 'HAS2', 'COL1A1', eq_loc=c(1, 40))
+corr_plot(data, 'MMP1', 'COL1A1', eq_loc=c(1, 40))
 
 
 ##############################################
@@ -189,6 +189,9 @@ corr_plot(data, 'HAS2', 'COL1A1', eq_loc=c(1, 40))
 
 ## steps
 ## 1) isolatetwo variables of interest (COL1A1 and CTGF for instance)
+## Do control, treated and treated/control. Not baseline. Therefore
+## remove baseline and added TGF/Control column
+
 ## 2) Interpolate the data using cubic spline for example. specify resolution.
 ## 3) add time delay to the predictor variable
 ## 4) Calculate pearsons coef. Also build in mutual information for comparison
@@ -196,11 +199,13 @@ corr_plot(data, 'HAS2', 'COL1A1', eq_loc=c(1, 40))
 
 
 
-# time_delay_corr = function(data, x, y, t){
+time_delay_corr = function(data, x, y, t){
+}
 x = 'CTGF'
 y = 'COL1A1'
 df = data[, c(x, y)]
 
+head(df)
 ## split id into separate columns in dataframe
 split = data.frame(str_split_fixed(rownames(data),'_', 4))
 
@@ -212,11 +217,44 @@ colnames(split) = c('cell_line', 'treatment', 'time', 'replicate')
 ## merge split frame into col_vs_ctgf_data
 merged = merge(df, split, by=0, all=T)
 
-merged$time = factor(merged$time)
-merged
+## convert time to numeric 
+merged$time = as.numeric(levels(merged$time))[merged$time]
+sapply(merged, class)
+head(merged)
+dim(merged)
+
+## remove baseline treatment. Not enough time points to accruately interpolate
+merged = merged[!(merged$treatment == 'Baseline'),]
+dim(merged)
+
+##isolate treated and control groups
+merged.treated = merged[merged$treatment == 'TGFb',]
+merged.control = merged[merged$treatment == 'Control',]
+
+dim(merged.treated)
+dim(merged.control)
+
+## sort both merged frames by cell line, treatment, time and replicate
+merged.treated[order(merged.treated$cell_line, 
+                     merged.treated$treatment,
+                     merged.treated$time,
+                     merged.treated$replicate),]
+
+merged.control[order(merged.control$cell_line, 
+                     merged.control$treatment,
+                     merged.control$time,
+                     merged.control$replicate),]
+
+head(merged.control)
+head(merged.treated)
+
+merged.treated[, c(x, y)] / merged.control[, c(x, y)]
+
 for (c in levels(merged$cell_line)){
   for (t in levels(merged$time)){
-    print(merged[,(merged$cell_line == c & merged$time == t)])
+    for (r in levels(merged$replicate)){
+      print (paste(c, t, r, sep='_'))
+    }
   }
 }
 
