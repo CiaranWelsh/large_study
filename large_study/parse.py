@@ -150,7 +150,7 @@ class Experiment(object):
     Accepts a design file. The design file had date and
     filename columns manually added before processing.
     """
-    def __init__(self, design, max_nan=6):
+    def __init__(self, design, max_nan=6, ddct_type=0):
         """
 
         :param design:
@@ -164,6 +164,9 @@ class Experiment(object):
         self.max_nan = max_nan
         self.root = os.path.dirname(design)
         self.subexperiments = self.create_subexperiments()
+        self.ddct_type = ddct_type
+        if self.ddct_type not in [0, 96, 'average']:
+            raise TypeError('ddct_type shold be 0, 96 or average')
         ## nested unzipping of nested list comprehension to retrieve all sample names from all plates
         self.all_samples = reduce(
             lambda x, y: x + y,
@@ -182,6 +185,8 @@ class Experiment(object):
 
         self.time = sorted(list(set(self.treatment_data.columns.get_level_values(1))))
         self.baseline_time = sorted(list(set(self.baseline_data.columns.get_level_values(1))))
+
+        self.control_ddct, self.tgf_ddct = self.calculate_ddct(self.ddct_type)
 
     def __getitem__(self, item):
         return self.subexperiments[item]
@@ -233,7 +238,39 @@ class Experiment(object):
         # df = df.swaplevel(0, 1)
         return df.sort_index(level=[0, 1, 2, 3])
 
-#
+    def calculate_ddct(self, baseline_time=0):
+        """
+        For the time being this is TGF/baseline and control/baseline
+        The choice of 0 or 96 will make a difference
+        :return:
+        """
+
+        if baseline_time == 0:
+            baseline = self.baseline_data['dct'][0]
+
+        elif baseline_time == 96:
+            baseline = self.baseline_data['dct'][96]
+
+        elif baseline_time == 'average':
+            baseline = (self.baseline_data['dct'][0] + self.baseline_data['dct'][96]) / 2
+
+        control =self.treatment_data.query('treatment == "Control"')['dct']
+        tgf = self.treatment_data.query('treatment == "TGFb"')['dct']
+        control.index = control.index.droplevel(1)
+        tgf.index = tgf.index.droplevel(1)
+        baseline.index = baseline.index.droplevel(1)
+
+        time = control.columns
+
+        tgf = pandas.concat([tgf[i]/baseline for i in tgf.columns], axis=1)
+        control = pandas.concat([control[i]/baseline for i in control.columns], axis=1)
+
+        control.columns = time
+        tgf.columns = time
+
+        return pandas.DataFrame(control.stack()), pandas.DataFrame(tgf.stack())
+
+
 class SubExperiment(object):
     """
     Class to hold a sub experiment formed of
@@ -543,7 +580,7 @@ class Plate(object):
             index=['cell_line', 'treatment',
                    'replicate', 'Assay'],
             columns='time',
-            values=['Sample', 'Ct', 'Norm2ref']
+            values=['Sample', 'Ct', 'dct']
         )
         df['Ct'].columns = [float(i) for i in df['Ct'].columns]
         return df.sort_index(level=[0, 1], axis=1)
@@ -562,7 +599,7 @@ class Plate(object):
             index=['cell_line', 'treatment',
                    'replicate', 'Assay'],
             columns='time',
-            values=['Sample', 'Ct', 'Norm2ref']
+            values=['Sample', 'Ct', 'dct']
         )
         df['Ct'].columns = [float(i) for i in df['Ct'].columns]
         return df.sort_index(level=[0, 1], axis=1)
@@ -687,7 +724,7 @@ class Sample(object):
         df = pandas.concat([self.data[self.data['Assay'] == i] for i in self.reference_genes])
         geomean = gmean(df['Ct'])
         norm = pandas.DataFrame(2**(-(self.data['Ct'] - geomean)))
-        norm.columns = ['Norm2ref']
+        norm.columns = ['dct']
         df = pandas.concat([self.data, norm], axis=1)
         return df.sort_values(by='Assay')
 
@@ -821,7 +858,7 @@ class Query(Experiment):
     def result(self):
         if self.normed:
             return self.data.loc[self.treatment, self.cell_id,
-                                 self.replicate, self.gene]['Norm2ref'][self.time]
+                                 self.replicate, self.gene]['dct'][self.time]
         else:
             return self.data.loc[self.treatment, self.cell_id,
                                  self.replicate, self.gene]['Ct'][self.time]

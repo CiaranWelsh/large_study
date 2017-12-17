@@ -8,6 +8,8 @@ import plotly.graph_objs as go
 import plotly
 import logging
 from cycler import cycler
+from matplotlib.backends.backend_pdf import PdfPages
+
 
 logging.basicConfig()
 LOG = logging.getLogger()
@@ -38,7 +40,7 @@ def plot1(treatment='Control', cell_line=u'B', repeat=range(1, 7), gene='SMAD7',
     :return:
     """
     if normed:
-        data = exp.treatment_data.loc[treatment, cell_line, repeat, gene]['Norm2ref']
+        data = exp.treatment_data.loc[treatment, cell_line, repeat, gene]['dct']
     else:
         data = exp.treatment_data.loc[treatment, cell_line, repeat, gene]['Ct']
     plot_data = data.groupby(level=[0,1]).agg(numpy.mean)
@@ -59,7 +61,7 @@ def plot2(exp, normed=True):
         [numpy.mean, numpy.std]
     )
     if normed:
-        treatment_data = treatment_data['Norm2ref']
+        treatment_data = treatment_data['dct']
     else:
         treatment_data = treatment_data['Ct']
 
@@ -117,7 +119,7 @@ def plot_individuals(exp, normed=True):
     :return:
     """
     if normed:
-        data = exp.treatment_data['Norm2ref']
+        data = exp.treatment_data['dct']
     else:
         data = exp.treatment_data['Ct']
 
@@ -165,12 +167,12 @@ def plot_individuals(exp, normed=True):
         #
 
         E = Experiment(design_file)
-        baseline = E.baseline_data.drop('Ct', axis=1)['Norm2ref']
+        baseline = E.baseline_data.drop('Ct', axis=1)['dct']
         baseline = baseline.drop(96, axis=1)
         baseline.index = baseline.index.swaplevel(0, 1)
         baseline = baseline.loc['Baseline']
 
-        treatment = E.treatment_data.drop('Ct', axis=1)['Norm2ref']
+        treatment = E.treatment_data.drop('Ct', axis=1)['dct']
         treatment.index = treatment.index.swaplevel('cell_line', 'treatment')
 
         control = treatment.loc['Control']
@@ -271,10 +273,10 @@ def plot_individuals(exp, normed=True):
 
 
         E = Experiment(design_file)
-        control = E.treatment_data.query('treatment == "Control"')['Norm2ref']
+        control = E.treatment_data.query('treatment == "Control"')['dct']
         control.index = control.index.droplevel(1)
 
-        tgfb = E.treatment_data.query('treatment == "TGFb"')['Norm2ref']
+        tgfb = E.treatment_data.query('treatment == "TGFb"')['dct']
         tgfb.index = tgfb.index.droplevel(1)
 
 
@@ -489,7 +491,7 @@ def plot_individuals(exp, normed=True):
 
 
 def plot_baseline():
-    from matplotlib.backends.backend_pdf import PdfPages
+    pandas.set_option('display.max_rows', 10000)
     seaborn.set(context='talk')
     seaborn.set_style('white')
     seaborn.set_palette(seaborn.color_palette('hls', 2))
@@ -499,8 +501,8 @@ def plot_baseline():
     baseline_dir = r'/home/b3053674/Documents/LargeStudy/Limma/Contrasts/BaselineAnalysis'
 
     E = Experiment(design_file)
-    baseline = E.treatment_data.query('treatment == "Baseline"')['Norm2ref']
-    baseline = E.baseline_data['Norm2ref']
+    baseline = E.treatment_data.query('treatment == "Baseline"')['dct']
+    baseline = E.baseline_data['dct']
     baseline.index = baseline.index.droplevel(1)
     baseline = pandas.DataFrame(baseline.stack())
 
@@ -511,6 +513,7 @@ def plot_baseline():
         for g in E.genes:
             print g
             plot_data = baseline.query('Assay == "{}"'.format(g))
+            print plot_data
             fig = plt.figure()
             ax = seaborn.barplot(x='cell_line', y='DeltaCt', data=plot_data, hue='time',)
             plt.title('Baseline: {}'.format(g))
@@ -542,26 +545,85 @@ def plot_baseline():
             seaborn.despine(fig=fig, top=False, right=False)
             plt.legend().set_title('Time(h)')
 
-            pdf.savefig(bbox_inches='tight', dpi=400)
+            # pdf.savefig(bbox_inches='tight', dpi=400)
+
+
+def plot(data, fname):
+    """
+    must be long form of dataframe without multiindex.
+    :param data:
+    :param fname:
+    :return:
+    """
+    with PdfPages(fname) as pdf:
+        for g in E.genes:
+            print g
+            plot_data = data.query('Assay == "{}"'.format(g))
+            print plot_data
+            fig = plt.figure()
+            ax = seaborn.barplot(x='cell_line', y='DeltaCt', data=plot_data, hue='time',)
+            plt.title('Baseline: {}'.format(g))
+            plt.ylabel('DeltaCt (mean n=6)')
+            plt.xlabel('')
+            trans = ax.get_xaxis_transform()
+            ax.annotate('Neonatal', xy=(0.4, -0.1), xycoords=trans)
+
+            ax.annotate('', xy=(0.05, -0.06), xycoords='axes fraction', xytext=(0.31, -0.06),
+                        arrowprops=dict(arrowstyle='-',
+                                        color='black',
+                                        linewidth=3)
+                        )
+
+            ax.annotate('Senescent', xy=(3.5, -0.1), xycoords=trans)
+            ax.annotate('', xy=(0.35, -0.06), xycoords='axes fraction', xytext=(0.65, -0.06),
+                        arrowprops=dict(arrowstyle='-',
+                                        color='black',
+                                        linewidth=3)
+                        )
+
+            ax.annotate('Adult', xy=(6.5, -0.1), xycoords=trans)
+            ax.annotate('', xy=(0.68, -0.06), xycoords='axes fraction', xytext=(0.98, -0.06),
+                        arrowprops=dict(arrowstyle='-',
+                                        color='black',
+                                        linewidth=3)
+                        )
+
+            seaborn.despine(fig=fig, top=False, right=False)
+            plt.legend().set_title('Time(h)')
 
 
 
-    # sub1_control = control.query('cell_line in ["A", "D", "G"]')
-    # sub1_tgf = tgfb.query('cell_line in ["A", "D", "G"]')
+
+
+def plot_ddct(baseline_time=0):
+    """
+    ddct is both control and treated samples
+    normalized to the baseline 0 or 96 samples
+
+    :param data:
+    :return:
+    """
+    # pandas.set_option('display.max_rows', 10000)
+    from matplotlib.backends.backend_pdf import PdfPages
+    seaborn.set(context='talk')
+    seaborn.set_style('white')
+    seaborn.set_palette(seaborn.color_palette('hls', 2))
+    dire = r'/home/b3053674/Documents/LargeStudy/GSS2375_WB_NewDur_Grant'
+    design_file = os.path.join(dire, 'new_design.csv')
+
+    baseline_dir = r'/home/b3053674/Documents/LargeStudy/Limma/Contrasts/BaselineAnalysis'
+
+    E = Experiment(design_file)
     #
-    # sub2_control = control.query('cell_line in ["B", "E", "H"]')
-    # sub2_tgf = tgfb.query('cell_line in ["B", "E", "H"]')
-    #
-    # sub3_control = control.query('cell_line in ["C", "F", "I"]')
-    # sub3_tgf = tgfb.query('cell_line in ["C", "F", "I"]')
+    def pl(data, fname):
+        for g in E.genes:
+            plot_data = data.query('Assay == "{}"'.format(g))
+            seaborn.tsplot(data=plot_data, unit='replicate', time='time',
+                           condition='cell_line, hue'
 
 
 
-
-
-
-
-
+    pl(E.control_ddct.reset_index(), 'control_data.pdf')
 
 
 
@@ -570,8 +632,9 @@ def plot_baseline():
 
 if __name__ == '__main__':
     # plot_individuals(exp)
-
-    plot_baseline()
+    d = r'/home/b3053674/Documents/LargeStudy'
+    os.chdir(d)
+    plot_ddct()
 
 
 
