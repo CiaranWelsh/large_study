@@ -1,8 +1,9 @@
 #-*- coding: utf-8 -*-
 import os
 import site
+from functools import reduce
 site.addsitedir(os.path.dirname(os.path.dirname(__file__)))
-from parse import *
+from .parse import *
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import Imputer
 import logging
@@ -40,7 +41,7 @@ if not os.path.isfile(design_file):
     raise ValueError('"{}" not valid file'.format(design_file))
 
 exp = Experiment(design_file)
-sample_keys = exp.subexperiments[1].plates[1].samples.keys()
+sample_keys = list(exp.subexperiments[1].plates[1].samples.keys())
 genes = exp.subexperiments[1].plates[1].samples[sample_keys[0]].genes
 
 factors = sorted(['cell_id', 'treatment', 'replicate', 'sub_experiment',
@@ -226,7 +227,7 @@ def str_join(df, sep, *cols):
 def print_full(df):
     default = pandas.get_option('display.max_rows')
     pandas.set_option('display.max_rows', df.shape[0])
-    print df
+    print(df)
     pandas.set_option('display.max_rows', default)
 
 
@@ -277,9 +278,9 @@ def do_pca_groupby(thresh, strategy, norm,
         # data.to_csv('data.csv')
         data = data.merge(design, on=['cell_id', 'replicate', 'treatment', 'time_point'])
 
-        data = data.drop([u'Lot.Number', u'WG.Plate', u'factor1', u'factor2',
-                          u'Iso.Order', u'Iso.Row', u'Label.Row', u'Label.Order',
-                          u'Label.Col', u'Iso.Col', u'Batch', u'RNAYield(ug)'], axis=1)
+        data = data.drop(['Lot.Number', 'WG.Plate', 'factor1', 'factor2',
+                          'Iso.Order', 'Iso.Row', 'Label.Row', 'Label.Order',
+                          'Label.Col', 'Iso.Col', 'Batch', 'RNAYield(ug)'], axis=1)
         #'cell_id', 'treatment', 'replicate', 'sub_experiment',
                 # 'cell_line', 'Treatment Start Date', 'Filename', 'Sample', 'Assay',
                 # 'time_point'
@@ -299,7 +300,8 @@ def do_pca_groupby(thresh, strategy, norm,
         pca.fit(data)
 
         explained_var = pandas.DataFrame(pca.explained_variance_)
-        print explained_var
+        print(explained_var)
+        explained_var.to_pickle(os.path.join('/home/b3053674/Documents/LargeStudy/SavedObjects', 'PCAExplainedVar.pickle'))
         plt.show()
         df = pandas.DataFrame(pca.transform(data))
         df.index = data.index
@@ -311,22 +313,22 @@ def do_pca_groupby(thresh, strategy, norm,
         df = df.sort_values(by=text)
 
 
-        print 'text is' , text
+        print('text is' , text)
 
         if text != 'All Data' or text != '':
 
             try:
                 df = df.query(output_state)
             except SyntaxError:
-                print 'Query "{}" caused Syntax error'.format(output_state)
+                print('Query "{}" caused Syntax error'.format(output_state))
 
         print_full(df)
-        print df.shape
-        print str_join(df, '_', *text)
+        print(df.shape)
+        print(str_join(df, '_', *text))
 
         groupby_obj = df.groupby(by=colour_by)
         import colorlover as cl
-        print 'len', len(groupby_obj)
+        print('len', len(groupby_obj))
         # try:
         #     paired = cl.scales['12']['qual']['Paired']
         #     colours = cl.interp(paired, len(groupby_obj))
@@ -337,7 +339,7 @@ def do_pca_groupby(thresh, strategy, norm,
         for label, df in groupby_obj:
             labels.append(label)
 
-        colours = dict(zip(labels, colours))
+        colours = dict(list(zip(labels, colours)))
 
         traces = []
         for label, d in groupby_obj:

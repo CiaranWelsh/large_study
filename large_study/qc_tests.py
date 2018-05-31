@@ -1,6 +1,6 @@
 import os, pandas, numpy, glob, unittest
-from parse import *
-from qc import *
+from .parse import *
+from .qc import *
 
 
 

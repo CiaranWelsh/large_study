@@ -1,4 +1,4 @@
-import parse
+from . import parse
 import os, glob, pandas, numpy
 from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
@@ -133,11 +133,11 @@ class TimeLagRegression(object):
         :return:
         """
         data = self.interp_data.stack().reset_index()
-        print data.head()
+        print(data.head())
         x = data.query("Assay == '{}'".format(self.x))
         y = data.query("Assay == '{}'".format(self.y))
-        print x.shape
-        print y.shape
+        print(x.shape)
+        print(y.shape)
         for label, df, in data.groupby(by=['treatment', 'cell_line']):
             plt.figure()
             seaborn.tsplot(data=df, time='time', unit='replicate', condition='Assay', value=0)
@@ -186,7 +186,7 @@ class TimeLagRegression(object):
         x, y = self.calculate_time_delay_data(1)
         # print pearsonr(x, y)
         for label, df in x.groupby(level=['treatment', 'cell_line']):
-            print df
+            print(df)
 
 
     def pearsons_correlation(self, x, y):

@@ -4,7 +4,7 @@ import dash_core_components as dcc
 import dash_html_components as html
 import plotly.graph_objs as go
 from dash.dependencies import Input, Output
-from parse import *
+from .parse import *
 import functools32
 from flask import Flask
 import dash_auth
@@ -44,7 +44,7 @@ if not os.path.isfile(design_file):
 
 # design_file = os.path
 exp = Experiment(design_file)
-sample_keys = exp.subexperiments[1].plates[1].samples.keys()
+sample_keys = list(exp.subexperiments[1].plates[1].samples.keys())
 genes = exp.subexperiments[1].plates[1].samples[sample_keys[0]].genes
 
 
@@ -132,7 +132,7 @@ app.layout = html.Div(
                         {'label': 6, 'value': 6},
                     ],
                     id='replicate_checklist',
-                    values=range(1, 7),
+                    values=list(range(1, 7)),
                     labelStyle={'display': 'inline-block'}
 
                 )],
@@ -253,14 +253,14 @@ def graphs(graph_id):
     )
     def plot_graph(treatment, time, replicate, baseline_time, gene, norm, ylim,
                    secondary_norm):
-        print 'treatments:', treatment
-        print 'time:', time
-        print 'baseline_time:', baseline_time
-        print 'gene:', gene, type(gene)
-        print 'norm:', norm
-        print 'replicate:', replicate
-        print 'ylim', ylim
-        print 'secondary_norm', secondary_norm
+        print('treatments:', treatment)
+        print('time:', time)
+        print('baseline_time:', baseline_time)
+        print('gene:', gene, type(gene))
+        print('norm:', norm)
+        print('replicate:', replicate)
+        print('ylim', ylim)
+        print('secondary_norm', secondary_norm)
         time = sorted(time)
         if not isinstance(treatment, list):
             treatment = [treatment]
@@ -297,7 +297,7 @@ def graphs(graph_id):
             for treat in treatment:
                 for rep in replicate:
                     for g in gene:
-                        if treat == u'Control':
+                        if treat == 'Control':
                             control_data[g] = treatment_data.loc[treat, rep, g].values
                             data.append(go.Scatter(x=time,
                                                    y=control_data[g],
@@ -306,7 +306,7 @@ def graphs(graph_id):
                                                    )
                                         )
 
-                        elif treat == u'TGFb':
+                        elif treat == 'TGFb':
                             tgf_data[g] = treatment_data.loc[treat, rep, g].values
                             data.append(go.Scatter(x=time, y=tgf_data[g],
                                                    name='{}_{}_{}'.format(treat, rep, g),
@@ -314,7 +314,7 @@ def graphs(graph_id):
                                                    )
                                         )
 
-                        elif treat == u'Baseline':
+                        elif treat == 'Baseline':
                             base_data[g] = baseline_data.loc[treat, rep, g].values
                             data.append(go.Scatter(x=[0, 96], y=base_data[g],
                                                    name='{}_{}_{}'.format(treat, rep, g),
@@ -343,7 +343,7 @@ def graphs(graph_id):
                         tgf_data = treatment_data.loc['TGFb', rep, g].values
                         data.append(go.Scatter(x=time, y=tgf_data/control_data,
                                                name='{}_{}_{}'.format(treat, rep, g)))
-            print 'ylim --> ', ylim 
+            print('ylim --> ', ylim) 
             if ylim == 'to_max':
                 layout = go.Layout(title=graph_id,
                                    xaxis=dict(title='Time(h)'),

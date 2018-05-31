@@ -2,7 +2,7 @@ import os
 import pandas
 import unittest
 import plot
-import parse
+from . import parse
 
 class QueryDataTests(unittest.TestCase):
     def setUp(self):

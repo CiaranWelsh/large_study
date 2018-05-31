@@ -1,4 +1,4 @@
-from parse import *
+from .parse import *
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import Imputer
 import matplotlib.pyplot as plt
@@ -10,195 +10,207 @@ import dash_core_components as dcc
 import dash_html_components as html
 import plotly
 from flask import Flask
-
-logging.basicConfig(level=logging.DEBUG)
-LOG = logging.getLogger()
-
-
-server = Flask(__name__)
-
-app = dash.Dash(server=server)
-
-app.css.append_css({"external_url": "https://codepen.io/chriddyp/pen/bWLwgP.css"})
-
-
-design_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'GSS2375_WB_NewDur_Grant')
-design_file = os.path.join(design_file, 'new_design.csv')
-if not os.path.isfile(design_file):
-    os.chdir('..')
-    design_file = os.path.abspath(design_file)
-
-
-if not os.path.isfile(design_file):
-    raise ValueError('"{}" not valid file'.format(design_file))
-
-# design_file = os.path
-exp = Experiment(design_file)
-sample_keys = exp.subexperiments[1].plates[1].samples.keys()
-genes = exp.subexperiments[1].plates[1].samples[sample_keys[0]].genes
-
-
-# app.layout = html.Div([
-#
-# ])
-
-
-'''
-First do a PCA on the 3 subexperiments, sets of 6 
-'''
-print exp.subexperiments.plates
+import pickle
 
 
 
+def do_pca_ddct(exp, thresh=3, exclude_query=None):
+
+    ddct = exp.ddct.set_index(['treatment', 'cell_line', 'Assay', 'replicate', 'time'])
+    ddct = ddct.rename(columns={0:'ddct'})
+    design = exp.design[['Sample', 'Treatment Start Date', 'Filename']]
 
 
+    ddct = ddct.reset_index() ##treatment cell_line    Assay  replicate  time      ddct
+    design = design.reset_index() ##sub_experiment cell_id treatment  replicate  time_point  Sample Treatment Start Date                  Filename
+
+    design = design.rename(columns={'time_point': 'time'})
+    ddct = ddct.rename(columns={'cell_line': 'cell_id'})
+    idx = ['treatment', 'cell_id', 'replicate', 'time']
+    ddct = ddct.set_index(idx)
+    design = design.set_index(idx)
+
+    df = design.merge(ddct, left_index=True, right_index=True)
+    # print df
+    # df.to_csv('/home/b3053674/Documents/LargeStudy/SavedObjects/data.csv')
 
 
+    idx = idx + ['Filename', 'Assay', 'Treatment Start Date', 'Sample']
+    df =df.reset_index().set_index(idx)
 
 
+    df = df.reset_index()
+
+    cell_line = []
+    for i in df['cell_id']:
+        if i in ['A', 'B', 'C']:
+            cell_line.append('Neonatal')
+
+        elif i in ['D', 'E', 'F']:
+            cell_line.append('Senescent')
+
+        elif i in ['G', 'H', 'I']:
+            cell_line.append('Adult')
+
+    ## add cell line column
+    df['cell_line'] = cell_line
+
+    df = df.pivot_table(columns=['Sample', 'cell_id', 'cell_line', 'replicate',
+                                 'treatment', 'time', 'Treatment Start Date',
+                                 'sub_experiment', 'Filename'], index='Assay')
+    df.dropna(axis=0, how='all', thresh=thresh, inplace=True)
+
+    I = Imputer(axis=1, strategy='median')
+    imputed = pandas.DataFrame(I.fit_transform(df), index=df.index, columns=df.columns)
+    imputed = imputed.transpose()
+
+    pca = PCA(10)
+    pca.fit(imputed)
+    explained_var = pandas.DataFrame(pca.explained_variance_ratio_)
+    explained_var.to_pickle('/home/b3053674/Documents/LargeStudy/SavedObjects/PCAExplainedVar.pickle')
+    pc = pca.transform(imputed)
+    pc = pandas.DataFrame(pc)
+
+    # print explained_var
+
+    pc.index = imputed.index
+    pc = pc[[0, 1]]
+
+    return pc, explained_var
 
 
+def do_pca_ct(exp, thresh=3, exclude_query=None):
+
+    treatment = exp.treatment_data.stack()
+    baseline = pandas.DataFrame(exp.baseline_data).stack()
+    ct = pandas.concat([treatment, baseline])['Ct']
+    ct = pandas.DataFrame(ct, columns=['Ct'])
+
+    # ct = ct.reset_index() ##treatment cell_line    Assay  replicate  time      ddct
+    design = exp.design[['Sample', 'Treatment Start Date', 'Filename']]
+
+    design = design.reset_index() ##sub_experiment cell_id treatment  replicate  time_point  Sample Treatment Start Date                  Filename
+
+    design = design.rename(columns={'time_point': 'time'})
+    ## set index to be the same in both so that we can merge the design with data
+    index_cols = ['cell_id', 'treatment', 'replicate', 'time']
+    ct = ct.reset_index().rename(columns={'cell_line': 'cell_id'}).set_index(index_cols)
+    design = design.reset_index().set_index(index_cols)
+    df = design.merge(ct, left_index=True, right_index=True)
+    del df['index']
+
+    df = df.reset_index()
+
+    cell_line = []
+    for i in df['cell_id']:
+        if i in ['A', 'B', 'C']:
+            cell_line.append('Neonatal')
+
+        elif i in ['D', 'E', 'F']:
+            cell_line.append('Senescent')
+
+        elif i in ['G', 'H', 'I']:
+            cell_line.append('Adult')
+
+    ## add cell line column
+    df['cell_line'] = cell_line
+    df = df.pivot_table(columns=['Sample', 'cell_line', 'cell_id', 'replicate',
+                                 'treatment', 'time', 'Treatment Start Date',
+                                 'sub_experiment', 'Filename'], index='Assay')
+
+    df.dropna(axis=0, how='all', thresh=thresh, inplace=True)
+
+    I = Imputer(axis=1, strategy='median')
+    imputed = pandas.DataFrame(I.fit_transform(df), index=df.index, columns=df.columns)
+    imputed = imputed.transpose()
+    imputed.index = imputed.index.droplevel(0)
+
+    pca = PCA(10)
+    pca.fit(imputed)
+    explained_var = pandas.DataFrame(pca.explained_variance_ratio_)
+
+    pc = pca.transform(imputed)
+    pc = pandas.DataFrame(pc)
+
+    pc.index = imputed.index
+    pc = pc[[0, 1]]
+    return pc, explained_var
 
 
+def plot_pca(pc, explained_var, colour_by='treatment', title=None,
+             folder=r'/home/b3053674/Documents/LargeStudy/RecentDataGraphs/QC/PCAPlots',
+             query=None):
+    """
+    Plot PCA
+    :param pc:
+    :param explained_var:
+    :param colour_by:
+    :param title:
+    :param folder:
+    :param query:
+    :return:
+    """
+
+    if title is None:
+        title = colour_by
+
+    if query is not None:
+        pc = pc.query(query)
+
+    seaborn.set_context('talk', font_scale=2)
+    seaborn.set_style('white')
+    fig = plt.figure()
 
 
+    colours = iter(seaborn.color_palette('hls', len(pc.groupby(colour_by))+2))
 
+    for label, df in pc.groupby(level=colour_by):
+        plt.plot(df[0], df[1], 'o', alpha=0.5, color=next(colours), label=label)
+        plt.xlabel('PC1 ({:.2f}%)'.format(explained_var[0].iloc[0]*100))
+        plt.ylabel('PC2 ({:.2f}%)'.format(explained_var[0].iloc[1]*100))
+        plt.title('PCA coloured by {}'.format(colour_by))
 
+    if colour_by is 'Filename':
+        plt.legend(loc=(1, 0.1), title=colour_by, fontsize=15)
+    else:
+        plt.legend(loc=(1, 0.1), title=colour_by, fontsize=25)
 
+    seaborn.despine(fig, top=True, right=True)
+    fname = os.path.join(folder, colour_by+'.png')
+    print('saved to "{}"'.format(fname))
+    plt.savefig(fname, dpi=800, bbox_inches='tight')
 
-
-#
-#
-# seaborn.set_context(context='talk', font_scale=1.5)
-#
-#
-# plt.rc('axes', prop_cycle=cycler('color', ['r', 'g', 'b', 'k', 'y', 'c']))
-#
-#
-#
-
-#
-# exp = Experiment(design_file)
-#
-# qc_dir = os.path.join(exp.root, 'QC')
-# if not os.path.isdir(qc_dir):
-#     os.makedirs(qc_dir)
-#
-#
-# def pca(exp, genes=None):
-#     """
-#
-#     :param exp:
-#     :param genes:
-#     :return:
-#     """
-#     if genes is not None:
-#         if not isinstance(genes, list):
-#             genes = [genes]
-#     data = exp.treatment_data['Norm2ref']#.dropna(axis=1, how='all')#, thresh=5)
-#
-#     LOG.debug('shape before dropping NaNs --> {}'.format(data.shape))
-#     data.dropna(axis=0, how='all', thresh=8, inplace=True)
-#     LOG.debug('shape after dropping NaNs --> {}'.format(data.shape))
-#     I = Imputer(axis=1)
-#     data = pandas.DataFrame(I.fit_transform(data), index=data.index, columns=data.columns)
-#     # print data.head()
-#     data = data.reorder_levels(['cell_line', 'treatment', 'Assay', 'replicate'])
-#
-#
-#     pc_dict = {}
-#     for cell in exp.cell_lines:
-#         cell_dir = os.path.join(qc_dir, cell)
-#         for treat in ['Control', 'TGFb']:
-#             fig=plt.figure()
-#             treat_dir = os.path.join(cell_dir, treat)
-#             if not os.path.isdir(treat_dir):
-#                 os.makedirs(treat_dir)
-#             if genes is None:
-#                 genes = list(set(data.loc[cell, treat].index.get_level_values(0)))
-#             for gene in genes:
-#                 gene_dir = os.path.join(treat_dir, gene)
-#
-#                 # print data.loc[cell, treat, gene]
-#                 # print cell, treat, gene
-#                 # print data.loc[cell, treat, gene]
-#                 try:
-#                     pc = PCA(2).fit_transform(data.loc[cell, treat, gene])
-#                     pc = pandas.DataFrame(pc, index=data.loc[cell, treat, gene].index)
-#                     plt.scatter(pc[0], pc[1], label='{}_{}'.format(gene, treat))
-#                     plt.legend(loc=(1, 0.5))
-#                 except KeyError:
-#                     continue
-#                 # try:
-#                 #     for i in range(pc.shape[0]):
-#                 #         plt.scatter(pc.iloc[i][0], pc.iloc[i][1], marker='o', label=str(pc.iloc[i].name))
-#                 #         plt.legend(loc=(0.5, 1))
-#                 # except KeyError:
-#                 #     print 'key error', cell, treat, gene
-#                 # plt.plot(pc[0], pc[1], label='{}_{}_{}'.format(cell, treat, gene))
-#                 # for i in range(pc.shape[0]):
-#                 #     x = pc.iloc[i][0]
-#                 #     y = pc.iloc[i][1]
-#                 #     plt.plot(x, y, marker='o', label='{}_{}_{}'.format(cell, treat, gene))
-#                 #     plt.legend(loc=(1,1))
-#
-#
-#             fname = os.path.join(treat_dir, reduce(
-#                 lambda x, y: '{}_{}'.format(x, y), genes)
-#                                  )
-#             fname = fname+'.png'
-#             plt.savefig(fname, bbox_inches='tight', dpi=400)
-#             LOG.debug('saved to "{}"'.format(fname))
-#
-#
-#
-# def get_gene_batches(n=6):
-#     """
-#     PCA plot gets crowded quite quickly. This
-#     function splits the 72*1 gene list into
-#     6*12 gene list. Then each of the 6 sets of
-#     12 will be PCA'ed together
-#     :return:
-#     """
-#     len_genes = len(exp.genes)
-#     # if len_genes % n is not 0:
-#     #     raise ValueError('{} / {} not exactly divisible. Pick another n number'.format(
-#     #         len(exp.genes), n
-#     #     ))
-#
-#     num_per_batch = len_genes / n
-#     gene_list = []
-#     for i in range(num_per_batch):
-#         LOG.debug('i is --> {}'.format(i))
-#         gene_list2 = []
-#         for j in range(n):
-#             LOG.debug('j is --> {}'.format(j))
-#             index = i*n+j
-#             gene_list2.append(exp.genes[index])
-#         gene_list.append(gene_list2)
-#     return gene_list
-#
-#
-#
-
+def plot_scree(explained_var, folder):
+    explained_var = explained_var.reset_index()
+    explained_var['index'] = explained_var['index'] + 1
+    explained_var[0] = explained_var[0]*100
+    print(explained_var)
+    seaborn.set_style('white')
+    seaborn.set_context('talk', font_scale=2)
+    fig = plt.figure()
+    seaborn.barplot(data=explained_var, x='index', y=0)
+    plt.xlabel('Principle Components (PC)')
+    plt.ylabel('Percentage Variance \nExplained by PC')
+    seaborn.despine(fig, top=True, right=True)
+    fname = os.path.join(folder, 'scree_plot.png')
+    plt.savefig(fname, dpi=500, bbox_inches='tight')
+    print('saved to "{}"'.format(fname))
 
 if __name__ == '__main__':
-    pass
-    # app.run_server(debug=True)
-    # # pca(exp, ['SMAD7', 'SMAD3'])
-    #
-    # gene_list = get_gene_batches()
-    # for i in gene_list:
-    #     pca(exp, i)
-    # # print gene_list
-    # print len(gene_list)
-    # print len(gene_list[0])
+    experiment_pickle = '/home/b3053674/Documents/LargeStudy/SavedObjects/Experiment.pickle'
 
+    with open(experiment_pickle, 'rb') as f:
+        exp = pickle.load(f)
 
+    factors = ['cell_id', 'cell_line', 'replicate', 'treatment', 'time',
+               'Treatment Start Date', 'sub_experiment', 'Filename']
+    pc, explained_var = do_pca_ct(exp)
+    # pc, explained_var = do_pca_ddct(exp)
 
+    raw_ct_folder = '/home/b3053674/Documents/LargeStudy/RecentDataGraphs/QC/PCAPlots/RawDataQC'
+    # ddct_folder = '/home/b3053674/Documents/LargeStudy/RecentDataGraphs/QC/PCAPlots/ddctDataQC'
 
-
-
-
-
+    # for f in factors:
+    #     plot_pca(pc, explained_var, colour_by=f, folder=ddct_folder)
+    plot_scree(explained_var, folder=raw_ct_folder)
 

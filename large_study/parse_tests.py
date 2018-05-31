@@ -1,7 +1,7 @@
 import os, glob
 import pandas, numpy
 import unittest
-from parse import *
+from .parse import *
 
 
 
@@ -32,7 +32,7 @@ class TestExperiment(unittest.TestCase):
         have been created with correct id's
         :return:
         """
-        self.assertEqual([1, 2, 3], [i.id for i in self.E.subexperiments.values()])
+        self.assertEqual([1, 2, 3], [i.id for i in list(self.E.subexperiments.values())])
 
     def test_design_length(self):
         """
@@ -48,10 +48,10 @@ class TestExperiment(unittest.TestCase):
         samples
         :return:
         """
-        l = [u'cell_line', u'Lot.Number',
-             u'Batch', u'Filename', u'WG.Plate',
-             u'Sample', u'Treatment Start Date']
-        self.assertTrue([i in self.E.design.keys() for i in l])
+        l = ['cell_line', 'Lot.Number',
+             'Batch', 'Filename', 'WG.Plate',
+             'Sample', 'Treatment Start Date']
+        self.assertTrue([i in list(self.E.design.keys()) for i in l])
 
     def test_treatment_data(self):
         cell_lines = sorted(list(set(self.E.treatment_data.index.get_level_values('cell_line'))))
@@ -283,7 +283,7 @@ class TestSamples(unittest.TestCase):
         PPIA_sample1_plate1_sub_exp1 = 22.73551
         ACTA2_normed = 0.45694803996582645
 
-        print self.s1.data
+        print(self.s1.data)
         self.assertAlmostEqual(float(self.s1.data.query('Assay == "ACTA2"')['Norm2ref']), ACTA2_normed)
 
 

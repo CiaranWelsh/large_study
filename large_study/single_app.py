@@ -4,12 +4,13 @@ import dash_core_components as dcc
 import dash_html_components as html
 import plotly.graph_objs as go
 from dash.dependencies import Input, Output, State
-from parse import *
+from .parse import *
 import functools32
 from flask import Flask
 import dash_auth
 from sklearn.preprocessing import Imputer
 from sklearn.decomposition import PCA
+from functools import reduce
 
 VALID_USERNAME_PASSWORD_PAIRS = [
     ['Ciaran', 'Welsh',
@@ -182,7 +183,7 @@ app.layout = html.Div(
                         {'label': 6, 'value': 6},
                     ],
                     id='replicate_checklist',
-                    values=range(1, 7),
+                    values=list(range(1, 7)),
                     labelStyle={'display': 'inline-block'}
 
                 )],
@@ -442,14 +443,14 @@ def graphs(graph_id):
     )
     def plot_graph(treatment, time, replicate, baseline_time,
                    gene, norm, ylim, secondary_norm):
-        print 'treatments:', treatment
-        print 'time:', time
-        print 'baseline_time:', baseline_time
-        print 'gene:', gene, type(gene)
-        print 'norm:', norm
-        print 'replicate:', replicate
-        print 'ylim', ylim
-        print 'secondary_norm', secondary_norm
+        print('treatments:', treatment)
+        print('time:', time)
+        print('baseline_time:', baseline_time)
+        print('gene:', gene, type(gene))
+        print('norm:', norm)
+        print('replicate:', replicate)
+        print('ylim', ylim)
+        print('secondary_norm', secondary_norm)
         time = sorted(time)
         if not isinstance(treatment, list):
             treatment = [treatment]
@@ -486,7 +487,7 @@ def graphs(graph_id):
             for treat in treatment:
                 for rep in replicate:
                     for g in gene:
-                        if treat == u'Control':
+                        if treat == 'Control':
                             control_data[g] = treatment_data.loc[treat, rep, g].values
                             data.append(go.Scatter(x=time,
                                                    y=control_data[g],
@@ -495,7 +496,7 @@ def graphs(graph_id):
                                                    )
                                         )
 
-                        elif treat == u'TGFb':
+                        elif treat == 'TGFb':
                             tgf_data[g] = treatment_data.loc[treat, rep, g].values
                             data.append(go.Scatter(x=time, y=tgf_data[g],
                                                    name='{}_{}_{}'.format(treat, rep, g),
@@ -503,7 +504,7 @@ def graphs(graph_id):
                                                    )
                                         )
 
-                        elif treat == u'Baseline':
+                        elif treat == 'Baseline':
                             base_data[g] = baseline_data.loc[treat, rep, g].values
                             data.append(go.Scatter(x=[0, 96], y=base_data[g],
                                                    name='{}_{}_{}'.format(treat, rep, g),
@@ -612,9 +613,9 @@ def do_pca_groupby(thresh, strategy, norm,
     # data.to_csv('data.csv')
     data = data.merge(design, on=['cell_id', 'replicate', 'treatment', 'time_point'])
 
-    data = data.drop([u'Lot.Number', u'WG.Plate', u'factor1', u'factor2',
-                      u'Iso.Order', u'Iso.Row', u'Label.Row', u'Label.Order',
-                      u'Label.Col', u'Iso.Col', u'Batch', u'RNAYield(ug)'], axis=1)
+    data = data.drop(['Lot.Number', 'WG.Plate', 'factor1', 'factor2',
+                      'Iso.Order', 'Iso.Row', 'Label.Row', 'Label.Order',
+                      'Label.Col', 'Iso.Col', 'Batch', 'RNAYield(ug)'], axis=1)
     # 'cell_id', 'treatment', 'replicate', 'sub_experiment',
     # 'cell_line', 'Treatment Start Date', 'Filename', 'Sample', 'Assay',
     # 'time_point'
@@ -639,10 +640,10 @@ def do_pca_groupby(thresh, strategy, norm,
         explained_var = pandas.DataFrame(pca.explained_variance_)
         plt.show()
         df = pandas.DataFrame(pca.transform(data))
-        print 'df', df
+        print('df', df)
         df.index = data.index
         df = df[[0, 1, 2]]
-        print 'df with index', df
+        print('df with index', df)
 
         df = df.reset_index()
         df['time_point'].astype(float)
@@ -655,7 +656,7 @@ def do_pca_groupby(thresh, strategy, norm,
             try:
                 df = df.query(output_state)
             except SyntaxError:
-                print 'Query "{}" caused Syntax error'.format(output_state)
+                print('Query "{}" caused Syntax error'.format(output_state))
 
         groupby_obj = df.groupby(by=colour_by)
         import colorlover as cl
@@ -665,7 +666,7 @@ def do_pca_groupby(thresh, strategy, norm,
         for label, df in groupby_obj:
             labels.append(label)
 
-        colours = dict(zip(labels, colours))
+        colours = dict(list(zip(labels, colours)))
 
         traces = []
         for label, d in groupby_obj:
@@ -716,13 +717,13 @@ def do_pca_groupby(thresh, strategy, norm,
         pca.fit(data)
 
         explained_var = pandas.DataFrame(pca.explained_variance_)
-        print explained_var
+        print(explained_var)
 
         df = pandas.DataFrame(pca.transform(data))
-        print 'df', df
+        print('df', df)
         df.index = data.index
         df = df[[0, 1, 2]]
-        print 'df with index', df
+        print('df with index', df)
 
 
         colours = ['hsl({},{}%,{}%)'.format(h, saturation, lightness) for h in numpy.linspace(0, 300, df.shape[0])]

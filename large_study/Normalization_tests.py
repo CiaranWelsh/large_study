@@ -1,7 +1,7 @@
 import pandas
 import numpy
 import unittest
-import parse
+from . import parse
 import os, glob
 
 
